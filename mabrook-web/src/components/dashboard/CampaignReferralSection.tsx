@@ -96,6 +96,24 @@ export function CampaignReferralSection({
             </div>
           </div>
         </div>
+        <p className="mt-3 text-xs text-brand/65">
+          Link-based referrals are the primary flow. Share this unique campaign link
+          to acquire and track conversions.
+        </p>
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="rounded-xl border border-line bg-footer/55 p-3">
+            <p className="text-xs text-brand/60">Link Clicks</p>
+            <p className="mt-1 text-2xl font-bold text-brand">1,420</p>
+          </div>
+          <div className="rounded-xl border border-line bg-footer/55 p-3">
+            <p className="text-xs text-brand/60">Signups from Link</p>
+            <p className="mt-1 text-2xl font-bold text-brand">204</p>
+          </div>
+          <div className="rounded-xl border border-line bg-footer/55 p-3">
+            <p className="text-xs text-brand/60">Conversion Rate</p>
+            <p className="mt-1 text-2xl font-bold text-brand">14.3%</p>
+          </div>
+        </div>
       </div>
     </section>
   )

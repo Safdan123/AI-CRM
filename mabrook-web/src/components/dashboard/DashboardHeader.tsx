@@ -6,6 +6,7 @@ import { MabrookLogo } from '../brand/MabrookLogo'
 
 const MENU_ITEMS = [
   { label: 'Dashboard', to: paths.dashboard },
+  { label: 'Referrals', to: paths.brokerReferrals },
   { label: 'Campaigns', to: paths.campaigns },
   { label: 'Settings', to: paths.settings },
 ] as const
