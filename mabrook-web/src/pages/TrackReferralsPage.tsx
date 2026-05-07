@@ -1,16 +1,16 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { DashboardHeader } from '../components/dashboard/DashboardHeader'
 import { Footer } from '../components/layout/Footer'
 import { paths } from '../config/paths'
-
-type ReferralStatus = 'Pending' | 'Verified' | 'Converted' | 'Rejected'
+import { referralService } from '../lib/api'
+import type { ReferralStatus } from '../lib/api/types'
 
 type ReferralRow = {
   id: string
   customerName: string
   phone: string
-  campaign: string
+  campaignId: string
   date: string
   status: ReferralStatus
 }
@@ -18,54 +18,62 @@ type ReferralRow = {
 const PAGE_WRAP =
   'flex min-h-svh w-full max-w-full flex-col overflow-x-hidden bg-white'
 
-const seedRows: ReferralRow[] = [
-  { id: 'RF-1023', customerName: 'Ali Raza', phone: '+92 301 0000001', campaign: 'Campaign 10', date: '2026-05-02', status: 'Pending' },
-  { id: 'RF-1022', customerName: 'Sara Ahmed', phone: '+92 301 0000002', campaign: 'Campaign 9', date: '2026-05-01', status: 'Verified' },
-  { id: 'RF-1021', customerName: 'Hamza Ali', phone: '+92 301 0000003', campaign: 'Campaign 8', date: '2026-04-29', status: 'Converted' },
-  { id: 'RF-1020', customerName: 'Amna Khan', phone: '+92 301 0000004', campaign: 'Campaign 7', date: '2026-04-28', status: 'Rejected' },
-  { id: 'RF-1019', customerName: 'Umer Farooq', phone: '+92 301 0000005', campaign: 'Campaign 10', date: '2026-04-27', status: 'Pending' },
-]
-
 function statusClass(status: ReferralStatus) {
-  if (status === 'Pending') return 'bg-amber-100 text-amber-800 border-amber-200'
-  if (status === 'Verified') return 'bg-blue-100 text-blue-800 border-blue-200'
-  if (status === 'Converted') return 'bg-green-100 text-green-800 border-green-200'
+  if (status === 'pending') return 'bg-amber-100 text-amber-800 border-amber-200'
+  if (status === 'verified') return 'bg-blue-100 text-blue-800 border-blue-200'
+  if (status === 'converted') return 'bg-green-100 text-green-800 border-green-200'
   return 'bg-red-100 text-red-800 border-red-200'
 }
 
 export function TrackReferralsPage() {
   const navigate = useNavigate()
-  const [rows, setRows] = useState(seedRows)
+  const [rows, setRows] = useState<ReferralRow[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
   const [query, setQuery] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'All' | ReferralStatus>('All')
+  const [statusFilter, setStatusFilter] = useState<'all' | ReferralStatus>('all')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
 
+  useEffect(() => {
+    let alive = true
+    setLoading(true)
+    setError('')
+    void referralService
+      .listByBroker({
+        query: query || undefined,
+        status: statusFilter,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
+      })
+      .then((res) => {
+        if (!alive) return
+        setRows(
+          res.data.items.map((item) => ({
+            id: item.id,
+            customerName: item.customerName,
+            phone: item.phone,
+            campaignId: item.campaignId,
+            date: item.createdAt,
+            status: item.status,
+          })),
+        )
+      })
+      .catch((err) => {
+        if (!alive) return
+        setError(err instanceof Error ? err.message : 'Failed to load referrals.')
+      })
+      .finally(() => {
+        if (alive) setLoading(false)
+      })
+    return () => {
+      alive = false
+    }
+  }, [query, statusFilter, startDate, endDate])
+
   const filteredRows = useMemo(() => {
-    return rows.filter((r) => {
-      const matchesQuery =
-        !query ||
-        r.id.toLowerCase().includes(query.toLowerCase()) ||
-        r.customerName.toLowerCase().includes(query.toLowerCase()) ||
-        r.phone.includes(query)
-      const matchesStatus = statusFilter === 'All' || r.status === statusFilter
-      const matchesStart = !startDate || r.date >= startDate
-      const matchesEnd = !endDate || r.date <= endDate
-      return matchesQuery && matchesStatus && matchesStart && matchesEnd
-    })
-  }, [rows, query, statusFilter, startDate, endDate])
-
-  const onCancelReferral = (id: string) => {
-    setRows((prev) =>
-      prev.map((item) =>
-        item.id === id ? { ...item, status: 'Rejected' as ReferralStatus } : item,
-      ),
-    )
-  }
-
-  const onEditReferral = (id: string) => {
-    console.log('Edit referral (mock):', id)
-  }
+    return rows
+  }, [rows])
 
   return (
     <div className={PAGE_WRAP}>
@@ -90,15 +98,15 @@ export function TrackReferralsPage() {
               <select
                 value={statusFilter}
                 onChange={(e) =>
-                  setStatusFilter(e.target.value as 'All' | ReferralStatus)
+                  setStatusFilter(e.target.value as 'all' | ReferralStatus)
                 }
                 className="h-10 rounded-full border border-line px-4 text-sm outline-none focus:border-brand"
               >
-                <option value="All">All Statuses</option>
-                <option value="Pending">Pending</option>
-                <option value="Verified">Verified</option>
-                <option value="Converted">Converted</option>
-                <option value="Rejected">Rejected</option>
+                <option value="all">All Statuses</option>
+                <option value="pending">Pending</option>
+                <option value="verified">Verified</option>
+                <option value="converted">Converted</option>
+                <option value="rejected">Rejected</option>
               </select>
               <input
                 type="date"
@@ -117,7 +125,7 @@ export function TrackReferralsPage() {
                   type="button"
                   onClick={() => {
                     setQuery('')
-                    setStatusFilter('All')
+                    setStatusFilter('all')
                     setStartDate('')
                     setEndDate('')
                   }}
@@ -147,13 +155,13 @@ export function TrackReferralsPage() {
                       <td className="px-4 py-3">{row.id}</td>
                       <td className="px-4 py-3 font-semibold">{row.customerName}</td>
                       <td className="px-4 py-3">{row.phone}</td>
-                      <td className="px-4 py-3">{row.campaign}</td>
+                      <td className="px-4 py-3">{row.campaignId}</td>
                       <td className="px-4 py-3">{row.date}</td>
                       <td className="px-4 py-3">
                         <span
                           className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${statusClass(row.status)}`}
                         >
-                          {row.status}
+                          {row.status.toUpperCase()}
                         </span>
                       </td>
                       <td className="px-4 py-3">
@@ -167,17 +175,10 @@ export function TrackReferralsPage() {
                           </button>
                           <button
                             type="button"
-                            onClick={() => onEditReferral(row.id)}
+                            onClick={() => navigate(paths.brokerReferralDetail(row.id))}
                             className="rounded-full border border-line px-3 py-1 text-xs font-semibold"
                           >
                             Edit
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => onCancelReferral(row.id)}
-                            className="rounded-full border border-red-200 px-3 py-1 text-xs font-semibold text-red-700"
-                          >
-                            Cancel
                           </button>
                         </div>
                       </td>
@@ -186,6 +187,8 @@ export function TrackReferralsPage() {
                 </tbody>
               </table>
             </div>
+            {loading ? <p className="mt-3 text-sm text-brand/70">Loading referrals...</p> : null}
+            {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
           </div>
         </section>
       </main>

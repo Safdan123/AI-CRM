@@ -1,12 +1,32 @@
-const kpis = [
-  { label: 'Total Customers', value: '1,245', delta: '+12% this month' },
-  { label: 'Active Brokers', value: '186', delta: '+4% this month' },
-  { label: 'Total Referrals', value: '3,902', delta: '+9% this month' },
-  { label: 'Conversions', value: '1,128', delta: '+6% this month' },
-  { label: 'Rewards Distributed', value: '$45,300', delta: '+15% this month' },
-] as const
+import { useEffect, useMemo, useState } from 'react'
+import { adminService } from '../../lib/api'
+import type { AdminKpi } from '../../lib/api/types'
 
 export function AdminDashboardPage() {
+  const [kpis, setKpis] = useState<AdminKpi | null>(null)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    void adminService
+      .getKpis()
+      .then((res) => setKpis(res.data))
+      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load KPIs.'))
+  }, [])
+
+  const cards = useMemo(
+    () =>
+      kpis
+        ? [
+            { label: 'Total Customers', value: String(kpis.totalCustomers) },
+            { label: 'Active Brokers', value: String(kpis.activeBrokers) },
+            { label: 'Total Referrals', value: String(kpis.totalReferrals) },
+            { label: 'Conversions', value: String(kpis.conversions) },
+            { label: 'Rewards Distributed', value: `$${kpis.rewardsDistributed}` },
+          ]
+        : [],
+    [kpis],
+  )
+
   return (
     <div className="mx-auto w-full max-w-[1200px]">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
@@ -30,14 +50,14 @@ export function AdminDashboardPage() {
       </div>
 
       <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
-        {kpis.map((item) => (
+        {cards.map((item) => (
           <article key={item.label} className="rounded-2xl border border-line bg-footer/55 p-4">
             <p className="text-xs text-brand/65">{item.label}</p>
             <p className="mt-1 text-2xl font-bold text-brand">{item.value}</p>
-            <p className="mt-1 text-xs text-green-700">{item.delta}</p>
           </article>
         ))}
       </section>
+      {error ? <p className="mt-4 text-sm text-red-600">{error}</p> : null}
 
       <section className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
         <article className="rounded-2xl border border-line bg-white p-5 lg:col-span-2">

@@ -1,35 +1,58 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-
-type ReferralStatus = 'Pending' | 'Verified' | 'Converted' | 'Rejected'
+import { adminService, referralService } from '../../lib/api'
+import type { Referral, ReferralStatus } from '../../lib/api/types'
 
 function statusClass(status: ReferralStatus) {
-  if (status === 'Pending') return 'bg-amber-100 text-amber-800 border-amber-200'
-  if (status === 'Verified') return 'bg-blue-100 text-blue-800 border-blue-200'
-  if (status === 'Converted') return 'bg-green-100 text-green-800 border-green-200'
+  if (status === 'pending') return 'bg-amber-100 text-amber-800 border-amber-200'
+  if (status === 'verified') return 'bg-blue-100 text-blue-800 border-blue-200'
+  if (status === 'converted') return 'bg-green-100 text-green-800 border-green-200'
   return 'bg-red-100 text-red-800 border-red-200'
 }
 
 export function AdminReferralReviewPage() {
   const navigate = useNavigate()
-  const { referralId = 'RF-1023' } = useParams<{ referralId: string }>()
-  const [status, setStatus] = useState<ReferralStatus>('Pending')
+  const { referralId = '' } = useParams<{ referralId: string }>()
+  const [status, setStatus] = useState<ReferralStatus>('pending')
   const [reviewNote, setReviewNote] = useState('')
+  const [referral, setReferral] = useState<Referral | null>(null)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (!referralId) return
+    void referralService
+      .getById(referralId)
+      .then((res) => {
+        setReferral(res.data)
+        setStatus(res.data.status)
+      })
+      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load referral.'))
+  }, [referralId])
+
+  async function applyStatus(nextStatus: ReferralStatus) {
+    if (!referralId) return
+    try {
+      await adminService.reviewReferral(referralId, { status: nextStatus, reviewNote })
+      setStatus(nextStatus)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update referral.')
+    }
+  }
 
   const timeline = useMemo(
     () => [
       { key: 'Submitted', done: true, date: '2026-05-01 10:22 AM' },
       {
         key: 'In Review',
-        done: status !== 'Pending',
-        date: status !== 'Pending' ? '2026-05-03 02:05 PM' : '--',
+        done: status !== 'pending',
+        date: status !== 'pending' ? 'Reviewed' : '--',
       },
       {
         key: 'Decision',
-        done: status === 'Verified' || status === 'Converted' || status === 'Rejected',
+        done: status === 'verified' || status === 'converted' || status === 'rejected',
         date:
-          status === 'Verified' || status === 'Converted' || status === 'Rejected'
-            ? '2026-05-04 11:35 AM'
+          status === 'verified' || status === 'converted' || status === 'rejected'
+            ? 'Completed'
             : '--',
       },
     ],
@@ -61,7 +84,7 @@ export function AdminReferralReviewPage() {
         <span
           className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${statusClass(status)}`}
         >
-          {status}
+          {status.toUpperCase()}
         </span>
       </div>
 
@@ -71,24 +94,24 @@ export function AdminReferralReviewPage() {
           <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
             <div className="rounded-xl bg-footer/60 p-3">
               <p className="text-xs text-brand/60">Customer Name</p>
-              <p className="mt-1 font-semibold text-brand">Ali Raza</p>
+              <p className="mt-1 font-semibold text-brand">{referral?.customerName ?? '--'}</p>
             </div>
             <div className="rounded-xl bg-footer/60 p-3">
               <p className="text-xs text-brand/60">Customer Phone</p>
-              <p className="mt-1 font-semibold text-brand">+92 301 2345678</p>
+              <p className="mt-1 font-semibold text-brand">{referral?.phone ?? '--'}</p>
             </div>
             <div className="rounded-xl bg-footer/60 p-3">
               <p className="text-xs text-brand/60">Campaign</p>
-              <p className="mt-1 font-semibold text-brand">Campaign 10</p>
+              <p className="mt-1 font-semibold text-brand">{referral?.campaignId ?? '--'}</p>
             </div>
             <div className="rounded-xl bg-footer/60 p-3">
               <p className="text-xs text-brand/60">Broker</p>
-              <p className="mt-1 font-semibold text-brand">Ahmad Stan</p>
+              <p className="mt-1 font-semibold text-brand">{referral?.brokerId ?? '--'}</p>
             </div>
             <div className="rounded-xl bg-footer/60 p-3 md:col-span-2">
               <p className="text-xs text-brand/60">Referral Notes</p>
               <p className="mt-1 text-sm text-brand/80">
-                Customer is interested in the investment package and requested a callback.
+                Referral status is currently {status}.
               </p>
             </div>
           </div>
@@ -109,28 +132,28 @@ export function AdminReferralReviewPage() {
           <div className="mt-5 flex flex-wrap gap-2">
             <button
               type="button"
-              onClick={() => setStatus('Verified')}
+              onClick={() => void applyStatus('verified')}
               className="rounded-full border border-blue-200 px-4 py-2 text-sm font-semibold text-blue-700 transition hover:bg-blue-600 hover:text-white"
             >
               Approve / Verify
             </button>
             <button
               type="button"
-              onClick={() => setStatus('Rejected')}
+              onClick={() => void applyStatus('rejected')}
               className="rounded-full border border-red-200 px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-600 hover:text-white"
             >
               Reject
             </button>
             <button
               type="button"
-              onClick={() => setStatus('Pending')}
+              onClick={() => void applyStatus('pending')}
               className="rounded-full border border-amber-200 px-4 py-2 text-sm font-semibold text-amber-800 transition hover:bg-amber-500 hover:text-white"
             >
               Request Revision
             </button>
             <button
               type="button"
-              onClick={() => setStatus('Converted')}
+              onClick={() => void applyStatus('converted')}
               className="rounded-full border border-green-200 px-4 py-2 text-sm font-semibold text-green-700 transition hover:bg-green-600 hover:text-white"
             >
               Mark Converted
@@ -164,6 +187,7 @@ export function AdminReferralReviewPage() {
           </div>
         </section>
       </div>
+      {error ? <p className="mt-4 text-sm text-red-600">{error}</p> : null}
     </div>
   )
 }

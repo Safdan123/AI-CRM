@@ -1,9 +1,12 @@
 /** Central route paths — extend as new screens ship (backend can align API routes separately). */
 export const paths = {
   home: '/',
+  about: '/about',
+  contact: '/contact',
   /** Broker / logged-in app shell (protect with auth in production). */
   dashboard: '/dashboard',
   campaigns: '/campaigns',
+  blogs: '/blogs',
   campaignsCreate: '/campaigns/create',
   brokerReferrals: '/referrals',
   brokerReferralCreate: '/referrals/create',
@@ -22,7 +25,9 @@ export const paths = {
     rewards: '/admin/rewards',
     aiInsights: '/admin/ai-insights',
     reports: '/admin/reports',
+    blogs: '/admin/blogs',
     usersRoles: '/admin/users-roles',
+    notifications: '/admin/notifications',
     settings: '/admin/settings',
   },
   userBase: '/user',

@@ -1,5 +1,6 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { countryDialCodes, initialProfile } from '../data/profile.mock'
+import { getMyProfile, updateMyProfile } from '../lib/api/realServices'
 
 type FormState = {
   fullName: string
@@ -46,7 +47,29 @@ export function MyProfilePage() {
   const [form, setForm] = useState<FormState>(() => cloneProfile())
   const [errors, setErrors] = useState<FieldErrors>({})
   const [loading, setLoading] = useState(false)
+  const [initialLoading, setInitialLoading] = useState(true)
   const [successMessage, setSuccessMessage] = useState('')
+  const [serverError, setServerError] = useState('')
+
+  useEffect(() => {
+    void getMyProfile()
+      .then((res) => {
+        const payload = res.data
+        const next: FormState = {
+          fullName: payload.fullName,
+          email: payload.email,
+          countryCode: initialProfile.countryCode,
+          mobile: payload.phone,
+          imageUrl: payload.avatarUrl || null,
+        }
+        setBaseline(next)
+        setForm(next)
+      })
+      .catch((err) => {
+        setServerError(err instanceof Error ? err.message : 'Failed to load profile.')
+      })
+      .finally(() => setInitialLoading(false))
+  }, [])
 
   const isDirty = useMemo(() => {
     return (
@@ -106,12 +129,21 @@ export function MyProfilePage() {
     if (!validate()) return
     const snapshot = { ...form }
     setLoading(true)
+    setServerError('')
     setErrors({})
-    window.setTimeout(() => {
-      setBaseline(snapshot)
-      setLoading(false)
-      setSuccessMessage('Your profile has been updated')
-    }, 900)
+    void updateMyProfile({
+      fullName: snapshot.fullName,
+      phone: snapshot.mobile,
+      avatarUrl: snapshot.imageUrl ?? '',
+    })
+      .then(() => {
+        setBaseline(snapshot)
+        setSuccessMessage('Your profile has been updated')
+      })
+      .catch((err) => {
+        setServerError(err instanceof Error ? err.message : 'Failed to save profile.')
+      })
+      .finally(() => setLoading(false))
   }
 
   const submitLabel = loading
@@ -137,6 +169,16 @@ export function MyProfilePage() {
         </p>
       </header>
 
+      {initialLoading ? (
+        <div className="mb-6 rounded-xl border border-line bg-footer px-4 py-3 text-sm text-brand/80">
+          Loading profile...
+        </div>
+      ) : null}
+      {serverError ? (
+        <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {serverError}
+        </div>
+      ) : null}
       {successMessage ? (
         <div
           className="mb-6 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-900"

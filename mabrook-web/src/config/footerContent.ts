@@ -26,6 +26,8 @@ export const footerColumns: FooterColumn[] = [
   {
     title: 'Company',
     links: [
+      { label: 'About Us', to: paths.about },
+      { label: 'Contact & Location', to: paths.contact },
       { label: 'Browse Offers', to: paths.business.offers },
       { label: 'How to Invest', to: paths.business.invest },
       { label: 'How to Raise Funds', to: paths.business.raiseFunds },

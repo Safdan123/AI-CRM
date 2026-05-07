@@ -10,7 +10,12 @@ import type {
 } from './types'
 
 export type LoginInput = { email: string; password: string }
-export type SignupInput = { fullName: string; email: string; password: string }
+export type SignupInput = {
+  fullName: string
+  email: string
+  password: string
+  role?: 'admin' | 'broker' | 'user' | 'support'
+}
 
 export interface AuthServiceContract {
   login(input: LoginInput): Promise<ApiResult<{ user: AuthUser; accessToken: string }>>

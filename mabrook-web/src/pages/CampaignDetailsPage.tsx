@@ -1,9 +1,11 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { DashboardHeader } from '../components/dashboard/DashboardHeader'
 import { Footer } from '../components/layout/Footer'
 import { paths } from '../config/paths'
 import { localLeaderboardAvatar } from '../data/brokerDashboard.mock'
+import { campaignService, referralService } from '../lib/api'
+import type { Campaign, Referral } from '../lib/api/types'
 
 type ReferralRow = {
   id: string
@@ -53,12 +55,29 @@ export function CampaignDetailsPage() {
   const navigate = useNavigate()
   const { campaignId } = useParams<{ campaignId: string }>()
   const campaignNumber = extractCampaignNumber(campaignId)
-  const campaignTitle = `Campaign ${campaignNumber}`
+  const [campaign, setCampaign] = useState<Campaign | null>(null)
+  const [campaignReferrals, setCampaignReferrals] = useState<Referral[]>([])
+  const [error, setError] = useState('')
 
-  const startedDate = '2025-10-22'
-  const endDate = '2025-11-22'
-  const referralsCount = 748
-  const activeUsers = 550
+  useEffect(() => {
+    if (!campaignId) return
+    void campaignService
+      .getById(campaignId)
+      .then((res) => setCampaign(res.data))
+      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load campaign.'))
+    void referralService
+      .listByBroker({ pageSize: 200 })
+      .then((res) => {
+        setCampaignReferrals(res.data.items.filter((item) => item.campaignId === campaignId))
+      })
+      .catch(() => setCampaignReferrals([]))
+  }, [campaignId])
+  const campaignTitle = campaign?.name ?? `Campaign ${campaignNumber}`
+
+  const startedDate = campaign?.startDate ?? '--'
+  const endDate = campaign?.endDate ?? '--'
+  const referralsCount = campaignReferrals.length
+  const activeUsers = campaignReferrals.filter((r) => r.status !== 'rejected').length
 
   const [query, setQuery] = useState('')
   const [page, setPage] = useState(1)
@@ -172,6 +191,7 @@ export function CampaignDetailsPage() {
                 </article>
               ))}
             </section>
+            {error ? <p className="mt-4 text-sm text-red-600">{error}</p> : null}
 
             <section className="mt-7">
               <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

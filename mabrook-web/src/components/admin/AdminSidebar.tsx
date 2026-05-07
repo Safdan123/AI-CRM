@@ -13,6 +13,8 @@ const adminItems = [
   { label: 'Rewards', to: paths.admin.rewards },
   { label: 'AI Insights', to: paths.admin.aiInsights },
   { label: 'Reports', to: paths.admin.reports },
+  { label: 'Blogs', to: paths.admin.blogs },
+  { label: 'Notifications', to: paths.admin.notifications },
   { label: 'Users & Roles', to: paths.admin.usersRoles },
   { label: 'Settings', to: paths.admin.settings },
 ] as const

@@ -1,14 +1,20 @@
 import { useEffect, useState } from 'react'
-import { userPortalService } from '../../lib/api'
+import { authService, userPortalService } from '../../lib/api'
 import type { Campaign } from '../../lib/api/types'
 
 export function UserDashboardPage() {
   const [acceptedCampaigns, setAcceptedCampaigns] = useState<Campaign[]>([])
 
   useEffect(() => {
-    void userPortalService.listAcceptedCampaigns('u-user-1').then((res) => {
-      setAcceptedCampaigns(res.data)
-    })
+    void authService
+      .me()
+      .then((meRes) => userPortalService.listAcceptedCampaigns(meRes.data.id))
+      .then((res) => {
+        setAcceptedCampaigns(res.data)
+      })
+      .catch(() => {
+        setAcceptedCampaigns([])
+      })
   }, [])
 
   return (

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { DashboardHeader } from '../components/dashboard/DashboardHeader'
 import { Footer } from '../components/layout/Footer'
 import { paths } from '../config/paths'
+import { getTokenPayload } from '../lib/api/http'
 
 type PositionReward = {
   id: string
@@ -103,6 +104,8 @@ function hasErrors(errors: FormErrors) {
 
 export function CreateCampaignPage() {
   const navigate = useNavigate()
+  const role = getTokenPayload()?.role
+  const canCreateCampaign = role === 'admin'
   const [form, setForm] = useState<FormState>(initialForm)
   const [submitted, setSubmitted] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -136,6 +139,7 @@ export function CreateCampaignPage() {
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault()
+    if (!canCreateCampaign) return
     setSubmitted(true)
     if (invalid) return
 
@@ -187,6 +191,11 @@ export function CreateCampaignPage() {
             </div>
 
             <form onSubmit={handleCreate}>
+              {!canCreateCampaign ? (
+                <p className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                  Only admins can create campaigns.
+                </p>
+              ) : null}
               <section className="pb-10">
                 <h2 className="mb-4 text-[22px] font-semibold text-brand">Campaign details</h2>
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -329,7 +338,7 @@ export function CreateCampaignPage() {
                 </button>
                 <button
                   type="submit"
-                  disabled={createDisabled}
+                  disabled={createDisabled || !canCreateCampaign}
                   className="h-10 min-w-[92px] rounded-full bg-brand px-8 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:bg-brand/35"
                 >
                   {saving ? 'Creating...' : 'Create'}

@@ -12,44 +12,41 @@ import {
   mockReferralService,
   mockUserPortalService,
 } from './mockServices'
+import {
+  realAdminService,
+  realAuthService,
+  realCampaignService,
+  realReferralService,
+  realUserPortalService,
+} from './realServices'
 
 /**
  * Backend integration switch:
- * - keep "mock" until backend routes are ready
- * - change to "real" and wire HTTP services in one place
+ * - default "mock" for UI-first development
+ * - set VITE_API_MODE=real to use backend services
  */
-const API_MODE: 'mock' | 'real' = 'mock'
-
-function notWired<T extends object>(name: string): T {
-  return new Proxy(
-    {},
-    {
-      get() {
-        throw new Error(`${name} real service is not wired yet.`)
-      },
-    },
-  ) as T
-}
+const API_MODE: 'mock' | 'real' =
+  (import.meta.env.VITE_API_MODE as 'mock' | 'real' | undefined) ?? 'mock'
 
 export const authService: AuthServiceContract =
-  API_MODE === 'mock' ? mockAuthService : notWired<AuthServiceContract>('authService')
+  API_MODE === 'mock' ? mockAuthService : realAuthService
 
 export const campaignService: CampaignServiceContract =
   API_MODE === 'mock'
     ? mockCampaignService
-    : notWired<CampaignServiceContract>('campaignService')
+    : realCampaignService
 
 export const referralService: ReferralServiceContract =
   API_MODE === 'mock'
     ? mockReferralService
-    : notWired<ReferralServiceContract>('referralService')
+    : realReferralService
 
 export const adminService: AdminServiceContract =
   API_MODE === 'mock'
     ? mockAdminService
-    : notWired<AdminServiceContract>('adminService')
+    : realAdminService
 
 export const userPortalService: UserPortalServiceContract =
   API_MODE === 'mock'
     ? mockUserPortalService
-    : notWired<UserPortalServiceContract>('userPortalService')
+    : realUserPortalService

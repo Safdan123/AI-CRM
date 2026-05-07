@@ -1,46 +1,28 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { DashboardHeader } from '../components/dashboard/DashboardHeader'
 import { Footer } from '../components/layout/Footer'
 import { paths } from '../config/paths'
-import { localLeaderboardAvatar } from '../data/brokerDashboard.mock'
+import { campaignService } from '../lib/api'
+import { getTokenPayload } from '../lib/api/http'
+import type { Campaign } from '../lib/api/types'
 
 type CampaignRow = {
   id: string
   number: number
   campaignName: string
-  username: string
   signupDate: string
-  referredBy: string
-  userAvatar: string
-  referrerAvatar: string
+  endDate: string
+  rewardAmount: number
 }
 
-type SortKey = 'number' | 'campaignName' | 'username' | 'signupDate' | 'referredBy'
+type SortKey = 'number' | 'campaignName' | 'signupDate' | 'endDate' | 'rewardAmount'
 type SortDir = 'asc' | 'desc'
 
 const PAGE_WRAP =
   'flex min-h-svh w-full max-w-full flex-col overflow-x-hidden bg-white'
 
 const ROWS_PER_PAGE = 10
-const TOTAL_PAGES = 25
-
-const baseRows: CampaignRow[] = Array.from(
-  { length: ROWS_PER_PAGE * TOTAL_PAGES },
-  (_, i) => {
-    const n = i + 1
-    return {
-      id: `campaign-${n}`,
-      number: n,
-      campaignName: `Campaign ${n}`,
-      username: 'Ahmad Stan',
-      signupDate: '2025-10-22',
-      referredBy: 'Ahmad Stan',
-      userAvatar: localLeaderboardAvatar(i),
-      referrerAvatar: localLeaderboardAvatar(i + 3),
-    }
-  },
-)
 
 function iconButtonClass(active: boolean) {
   return `flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide ${
@@ -50,24 +32,48 @@ function iconButtonClass(active: boolean) {
 
 export function CampaignsPage() {
   const navigate = useNavigate()
+  const role = getTokenPayload()?.role
+  const canCreateCampaign = role === 'admin'
   const [query, setQuery] = useState('')
+  const [rows, setRows] = useState<CampaignRow[]>([])
+  const [error, setError] = useState('')
   const [page, setPage] = useState(1)
   const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({
     key: 'number',
     dir: 'asc',
   })
 
+  useEffect(() => {
+    void campaignService
+      .list()
+      .then((res) => {
+        setRows(
+          res.data.map((c: Campaign, index: number) => ({
+            id: c.id,
+            number: index + 1,
+            campaignName: c.name,
+            signupDate: c.startDate,
+            endDate: c.endDate,
+            rewardAmount: c.totalRewardAmount,
+          })),
+        )
+      })
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : 'Failed to load campaigns.')
+      })
+  }, [])
+
   const filteredRows = useMemo(() => {
     const q = query.trim().toLowerCase()
-    if (!q) return baseRows
-    return baseRows.filter((row) => {
+    if (!q) return rows
+    return rows.filter((row) => {
       return (
         row.campaignName.toLowerCase().includes(q) ||
-        row.username.toLowerCase().includes(q) ||
-        row.referredBy.toLowerCase().includes(q)
+        row.signupDate.toLowerCase().includes(q) ||
+        row.endDate.toLowerCase().includes(q)
       )
     })
-  }, [query])
+  }, [query, rows])
 
   const sortedRows = useMemo(() => {
     const list = [...filteredRows]
@@ -145,13 +151,15 @@ export function CampaignsPage() {
                     className="h-10 w-full rounded-full border border-line bg-white pl-10 pr-4 text-sm text-brand-ink outline-none transition focus:border-brand"
                   />
                 </label>
-                <button
-                  type="button"
-                  onClick={() => navigate(paths.campaignsCreate)}
-                  className="h-10 rounded-full bg-brand px-5 text-sm font-semibold text-white transition hover:opacity-90"
-                >
-                  Create New Campaign
-                </button>
+                {canCreateCampaign ? (
+                  <button
+                    type="button"
+                    onClick={() => navigate(paths.campaignsCreate)}
+                    className="h-10 rounded-full bg-brand px-5 text-sm font-semibold text-white transition hover:opacity-90"
+                  >
+                    Create New Campaign
+                  </button>
+                ) : null}
               </div>
             </div>
 
@@ -184,16 +192,6 @@ export function CampaignsPage() {
                     <th className="px-4 py-3 font-semibold sm:px-6">
                       <button
                         type="button"
-                        onClick={() => onToggleSort('username')}
-                        className={iconButtonClass(sort.key === 'username')}
-                      >
-                        Username
-                        <span>{sort.key === 'username' && sort.dir === 'desc' ? '↓' : '↑'}</span>
-                      </button>
-                    </th>
-                    <th className="px-4 py-3 font-semibold sm:px-6">
-                      <button
-                        type="button"
                         onClick={() => onToggleSort('signupDate')}
                         className={iconButtonClass(sort.key === 'signupDate')}
                       >
@@ -204,11 +202,21 @@ export function CampaignsPage() {
                     <th className="px-4 py-3 font-semibold sm:px-6">
                       <button
                         type="button"
-                        onClick={() => onToggleSort('referredBy')}
-                        className={iconButtonClass(sort.key === 'referredBy')}
+                        onClick={() => onToggleSort('endDate')}
+                        className={iconButtonClass(sort.key === 'endDate')}
                       >
-                        Referred By
-                        <span>{sort.key === 'referredBy' && sort.dir === 'desc' ? '↓' : '↑'}</span>
+                        End Date
+                        <span>{sort.key === 'endDate' && sort.dir === 'desc' ? '↓' : '↑'}</span>
+                      </button>
+                    </th>
+                    <th className="px-4 py-3 font-semibold sm:px-6">
+                      <button
+                        type="button"
+                        onClick={() => onToggleSort('rewardAmount')}
+                        className={iconButtonClass(sort.key === 'rewardAmount')}
+                      >
+                        Reward
+                        <span>{sort.key === 'rewardAmount' && sort.dir === 'desc' ? '↓' : '↑'}</span>
                       </button>
                     </th>
                   </tr>
@@ -222,31 +230,9 @@ export function CampaignsPage() {
                     >
                       <td className="px-4 py-4 sm:px-6">{row.number}</td>
                       <td className="px-4 py-4 font-semibold sm:px-6">{row.campaignName}</td>
-                      <td className="px-4 py-4 sm:px-6">
-                        <div className="flex items-center gap-2.5">
-                          <img
-                            src={row.userAvatar}
-                            alt=""
-                            className="size-6 rounded-full border border-line object-cover"
-                            width={24}
-                            height={24}
-                          />
-                          <span>{row.username}</span>
-                        </div>
-                      </td>
                       <td className="px-4 py-4 sm:px-6">{row.signupDate}</td>
-                      <td className="px-4 py-4 sm:px-6">
-                        <div className="flex items-center gap-2.5">
-                          <img
-                            src={row.referrerAvatar}
-                            alt=""
-                            className="size-6 rounded-full border border-line object-cover"
-                            width={24}
-                            height={24}
-                          />
-                          <span>{row.referredBy}</span>
-                        </div>
-                      </td>
+                      <td className="px-4 py-4 sm:px-6">{row.endDate}</td>
+                      <td className="px-4 py-4 sm:px-6">${row.rewardAmount}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -333,6 +319,7 @@ export function CampaignsPage() {
               The date &amp; timestamp are displayed according to the time zone of your
               browser.
             </p>
+            {error ? <p className="mt-2 text-sm text-red-600">{error}</p> : null}
           </div>
         </section>
       </main>

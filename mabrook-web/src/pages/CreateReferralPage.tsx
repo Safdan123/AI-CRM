@@ -1,8 +1,12 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { DashboardHeader } from '../components/dashboard/DashboardHeader'
 import { Footer } from '../components/layout/Footer'
 import { paths } from '../config/paths'
+import { getTokenPayload } from '../lib/api/http'
+import { campaignService } from '../lib/api'
+import { createReferral } from '../lib/api/realServices'
+import type { Campaign } from '../lib/api/types'
 
 type FormState = {
   customerName: string
@@ -20,7 +24,6 @@ const PAGE_WRAP =
 const inputClass =
   'h-10 w-full rounded-md border border-line bg-white px-3 text-sm text-brand-ink outline-none transition focus:border-brand'
 
-const campaigns = ['Campaign 7', 'Campaign 8', 'Campaign 9', 'Campaign 10']
 const relationshipOptions = ['Friend', 'Family', 'Colleague', 'Client', 'Other']
 
 const initialForm: FormState = {
@@ -45,9 +48,24 @@ function validate(form: FormState) {
 
 export function CreateReferralPage() {
   const navigate = useNavigate()
+  const role = getTokenPayload()?.role
+  const canCreateReferral = role === 'admin' || role === 'broker'
   const [form, setForm] = useState<FormState>(initialForm)
+  const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [submitted, setSubmitted] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [submitError, setSubmitError] = useState('')
+
+  useEffect(() => {
+    void campaignService
+      .list()
+      .then((res) => {
+        setCampaigns(res.data)
+      })
+      .catch(() => {
+        setCampaigns([])
+      })
+  }, [])
 
   const errors = useMemo(() => validate(form), [form])
   const hasErrors = Object.keys(errors).length > 0
@@ -58,16 +76,26 @@ export function CreateReferralPage() {
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    if (!canCreateReferral) return
     setSubmitted(true)
+    setSubmitError('')
     if (hasErrors) return
 
     setSaving(true)
-    const payload = { ...form, referralId: `RF-${Math.floor(1000 + Math.random() * 9000)}` }
-    window.setTimeout(() => {
-      console.log('Create referral payload (mock):', payload)
-      setSaving(false)
-      navigate(paths.brokerReferrals)
-    }, 700)
+    void createReferral({
+      customerName: form.customerName,
+      phone: form.phone,
+      campaignId: form.campaign,
+    })
+      .then(() => {
+        navigate(paths.brokerReferrals)
+      })
+      .catch((err) => {
+        setSubmitError(err instanceof Error ? err.message : 'Failed to submit referral.')
+      })
+      .finally(() => {
+        setSaving(false)
+      })
   }
 
   return (
@@ -102,6 +130,11 @@ export function CreateReferralPage() {
             </div>
 
             <form onSubmit={onSubmit}>
+              {!canCreateReferral ? (
+                <p className="mb-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                  Only admins and brokers can submit referrals.
+                </p>
+              ) : null}
               <section className="rounded-2xl border border-line bg-white p-5 sm:p-6">
                 <h2 className="mb-4 text-lg font-semibold text-brand">Customer Information</h2>
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -140,8 +173,8 @@ export function CreateReferralPage() {
                     >
                       <option value="">Select campaign</option>
                       {campaigns.map((c) => (
-                        <option key={c} value={c}>
-                          {c}
+                        <option key={c.id} value={c.id}>
+                          {c.name}
                         </option>
                       ))}
                     </select>
@@ -188,6 +221,9 @@ export function CreateReferralPage() {
               </section>
 
               <div className="mt-5 flex flex-wrap justify-end gap-2">
+                {submitError ? (
+                  <p className="w-full text-right text-xs text-red-600">{submitError}</p>
+                ) : null}
                 <button
                   type="button"
                   onClick={() => navigate(-1)}
@@ -197,6 +233,7 @@ export function CreateReferralPage() {
                 </button>
                 <button
                   type="submit"
+                  disabled={!canCreateReferral || saving}
                   className="h-10 rounded-full bg-brand px-7 text-sm font-semibold text-white transition hover:opacity-90"
                 >
                   {saving ? 'Submitting...' : 'Submit Referral'}

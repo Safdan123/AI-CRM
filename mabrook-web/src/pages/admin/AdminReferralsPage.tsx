@@ -1,20 +1,38 @@
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { paths } from '../../config/paths'
+import { adminService } from '../../lib/api'
+import type { Referral } from '../../lib/api/types'
 
 export function AdminReferralsPage() {
   const navigate = useNavigate()
-  const items = [
-    { id: 'RF-1023', customer: 'Ali Raza', campaign: 'Campaign 10', status: 'Pending', broker: 'Ahmad Stan' },
-    { id: 'RF-1022', customer: 'Sara Ahmed', campaign: 'Campaign 8', status: 'Verified', broker: 'Ali Khan' },
-    { id: 'RF-1021', customer: 'Hamza Ali', campaign: 'Campaign 9', status: 'Converted', broker: 'Momin Butt' },
-    { id: 'RF-1020', customer: 'Amna Khan', campaign: 'Campaign 7', status: 'Rejected', broker: 'Raza Jafri' },
-  ]
+  const [items, setItems] = useState<Referral[]>([])
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    void adminService
+      .listReferralsForReview()
+      .then((res) => setItems(res.data))
+      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load referrals.'))
+  }, [])
+
+  async function review(id: string, status: 'verified' | 'rejected') {
+    try {
+      await adminService.reviewReferral(id, {
+        status,
+        reviewNote: `Updated from list view: ${status}`,
+      })
+      setItems((prev) => prev.map((item) => (item.id === id ? { ...item, status } : item)))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update referral.')
+    }
+  }
 
   const statusClass: Record<string, string> = {
-    Pending: 'bg-amber-100 text-amber-800 border-amber-200',
-    Verified: 'bg-blue-100 text-blue-800 border-blue-200',
-    Converted: 'bg-green-100 text-green-800 border-green-200',
-    Rejected: 'bg-red-100 text-red-800 border-red-200',
+    pending: 'bg-amber-100 text-amber-800 border-amber-200',
+    verified: 'bg-blue-100 text-blue-800 border-blue-200',
+    converted: 'bg-green-100 text-green-800 border-green-200',
+    rejected: 'bg-red-100 text-red-800 border-red-200',
   }
 
   return (
@@ -46,14 +64,14 @@ export function AdminReferralsPage() {
                 onClick={() => navigate(paths.admin.referralReview(item.id))}
               >
                 <td className="px-4 py-3">{item.id}</td>
-                <td className="px-4 py-3 font-semibold">{item.customer}</td>
-                <td className="px-4 py-3">{item.campaign}</td>
-                <td className="px-4 py-3">{item.broker}</td>
+                <td className="px-4 py-3 font-semibold">{item.customerName}</td>
+                <td className="px-4 py-3">{item.campaignId}</td>
+                <td className="px-4 py-3">{item.brokerId}</td>
                 <td className="px-4 py-3">
                   <span
                     className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${statusClass[item.status]}`}
                   >
-                    {item.status}
+                    {item.status.toUpperCase()}
                   </span>
                 </td>
                 <td className="px-4 py-3">
@@ -68,13 +86,19 @@ export function AdminReferralsPage() {
                       Review
                     </button>
                     <button
-                      onClick={(e) => e.stopPropagation()}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        void review(item.id, 'verified')
+                      }}
                       className="rounded-full border border-green-200 px-3 py-1 text-xs font-semibold text-green-700"
                     >
                       Approve
                     </button>
                     <button
-                      onClick={(e) => e.stopPropagation()}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        void review(item.id, 'rejected')
+                      }}
                       className="rounded-full border border-red-200 px-3 py-1 text-xs font-semibold text-red-700"
                     >
                       Reject
@@ -86,6 +110,7 @@ export function AdminReferralsPage() {
           </tbody>
         </table>
       </div>
+      {error ? <p className="mt-4 text-sm text-red-600">{error}</p> : null}
     </div>
   )
 }

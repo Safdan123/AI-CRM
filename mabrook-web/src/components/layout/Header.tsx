@@ -58,10 +58,16 @@ export function Header({
         </div>
 
         {mode === 'marketing' ? (
-          <nav
-            className="hidden items-center gap-2 md:flex md:gap-4"
-            aria-label="Account"
-          >
+          <nav className="hidden items-center gap-2 md:flex md:gap-4" aria-label="Account">
+            <Link to={paths.about} className="px-3 py-2 text-sm font-semibold text-brand/85 transition hover:text-brand">
+              About
+            </Link>
+            <Link to={paths.blogs} className="px-3 py-2 text-sm font-semibold text-brand/85 transition hover:text-brand">
+              Blogs
+            </Link>
+            <Link to={paths.contact} className="px-3 py-2 text-sm font-semibold text-brand/85 transition hover:text-brand">
+              Contact
+            </Link>
             <ButtonLink
               to={paths.login}
               variant="secondary"
@@ -136,6 +142,27 @@ export function Header({
           }`}
         >
           <div className="mx-auto flex max-w-[1440px] flex-col gap-2 px-4 sm:px-8">
+            <Link
+              to={paths.about}
+              className="rounded-xl px-4 py-3 text-center text-base font-semibold text-brand"
+              onClick={() => setMobileOpen(false)}
+            >
+              About
+            </Link>
+            <Link
+              to={paths.blogs}
+              className="rounded-xl px-4 py-3 text-center text-base font-semibold text-brand"
+              onClick={() => setMobileOpen(false)}
+            >
+              Blogs
+            </Link>
+            <Link
+              to={paths.contact}
+              className="rounded-xl px-4 py-3 text-center text-base font-semibold text-brand"
+              onClick={() => setMobileOpen(false)}
+            >
+              Contact
+            </Link>
             <Link
               to={paths.login}
               className="rounded-xl px-4 py-3 text-center text-base font-semibold text-brand"
