@@ -1,0 +1,15 @@
+FROM node:20-alpine
+ARG SERVICE
+ENV SERVICE=$SERVICE
+ENV NODE_ENV=development
+
+WORKDIR /repo
+
+COPY package.json ./
+COPY packages packages
+COPY services services
+
+RUN npm install --no-audit --no-fund --omit=optional
+
+WORKDIR /repo/services/${SERVICE}
+CMD ["npm", "run", "dev"]

@@ -1,0 +1,167 @@
+_format_version: "3.0"
+_transform: true
+
+services:
+  - name: auth-service
+    url: http://auth-service:4001
+    routes:
+      - name: auth
+        paths:
+          - /api/auth
+        strip_path: false
+      - name: admin-users
+        paths:
+          - /api/admin/users
+        strip_path: false
+
+  - name: user-profile-service
+    url: http://user-profile-service:4002
+    routes:
+      - name: profile
+        paths:
+          - /api/profile
+        strip_path: false
+
+  - name: campaign-service
+    url: http://campaign-service:4003
+    routes:
+      - name: campaigns
+        paths:
+          - /api/campaigns
+        strip_path: false
+
+  - name: referral-service
+    url: http://referral-service:4004
+    routes:
+      - name: referrals
+        paths:
+          - /api/referrals
+        strip_path: false
+      - name: admin-referrals
+        paths:
+          - /api/admin/referrals
+        strip_path: false
+      - name: ref-accept
+        paths:
+          - ~/^/api/ref/[^/]+/accept$
+        strip_path: false
+      - name: accepted-campaigns
+        paths:
+          - ~/^/api/users/[^/]+/accepted-campaigns$
+        strip_path: false
+
+  - name: reward-service
+    url: http://reward-service:4005
+    routes:
+      - name: rewards
+        paths:
+          - /api/rewards
+        strip_path: false
+
+  - name: notification-service
+    url: http://notification-service:4006
+    routes:
+      - name: notifications
+        paths:
+          - /api/notifications
+        strip_path: false
+      - name: socketio
+        paths:
+          - /socket.io
+        strip_path: false
+        protocols:
+          - http
+          - https
+          - ws
+          - wss
+
+  - name: content-service
+    url: http://content-service:4007
+    routes:
+      - name: blogs
+        paths:
+          - /api/blogs
+        strip_path: false
+      - name: public-content
+        paths:
+          - /api/public
+        strip_path: false
+
+  - name: search-service
+    url: http://search-service:4008
+    routes:
+      - name: search
+        paths:
+          - /api/search
+        strip_path: false
+
+  - name: analytics-service
+    url: http://analytics-service:4009
+    routes:
+      - name: admin-kpis
+        paths:
+          - /api/admin/kpis
+        strip_path: false
+      - name: admin-summary
+        paths:
+          - /api/analytics
+        strip_path: false
+
+  - name: ai-service
+    url: http://ai-service:4010
+    routes:
+      - name: recommendations
+        paths:
+          - /api/recommendations
+        strip_path: false
+      - name: ai
+        paths:
+          - /api/ai
+        strip_path: false
+
+  - name: report-service
+    url: http://report-service:4011
+    routes:
+      - name: reports
+        paths:
+          - /api/reports
+        strip_path: false
+
+plugins:
+  - name: cors
+    config:
+      origins:
+        - http://localhost:5173
+        - http://127.0.0.1:5173
+      methods:
+        - GET
+        - POST
+        - PUT
+        - PATCH
+        - DELETE
+        - OPTIONS
+        - HEAD
+      headers:
+        - Accept
+        - Authorization
+        - Content-Type
+        - X-Requested-With
+        - X-Internal-Key
+      exposed_headers:
+        - Content-Disposition
+      credentials: true
+      max_age: 3600
+  - name: rate-limiting
+    config:
+      minute: 600
+      policy: local
+  - name: rate-limiting
+    route: auth
+    config:
+      minute: 30
+      policy: local
+  - name: correlation-id
+    config:
+      header_name: X-Request-Id
+      generator: uuid
+      echo_downstream: true
