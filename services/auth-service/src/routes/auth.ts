@@ -150,9 +150,12 @@ export function adminUsersRouter() {
         .limit(pageSize),
       UserModel.countDocuments(),
     ])
+    const totalPages = Math.ceil(total / pageSize)
     return res.json(
-      ok(users.map((u) => ({ id: u.id, fullName: u.fullName, email: u.email, role: u.role }))),
-      `page ${page} / ${Math.ceil(total / pageSize)}`,
+      ok(
+        users.map((u) => ({ id: u.id, fullName: u.fullName, email: u.email, role: u.role })),
+        `page ${page} / ${totalPages}`,
+      ),
     )
   })
   return router

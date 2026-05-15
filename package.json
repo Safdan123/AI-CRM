@@ -25,6 +25,7 @@
     "stack:logs": "docker compose -f infra/docker-compose.yml logs -f",
     "stack:reset": "docker compose -f infra/docker-compose.yml down -v",
     "seed": "node infra/seed.mjs",
-    "smoke": "node infra/smoke.mjs"
+    "smoke": "node infra/smoke.mjs",
+    "seed:synthetic-ai": "docker compose -f infra/docker-compose.yml exec -T ai-service npm run seed:synthetic"
   }
 }

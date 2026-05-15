@@ -32,7 +32,7 @@ export function analyticsRouter() {
     )
   })
 
-  router.get('/summary', requireAuth, requireRole(['admin', 'support']), async (_req, res) => {
+  router.get('/analytics/summary', requireAuth, requireRole(['admin', 'support']), async (_req, res) => {
     const counters = await CounterModel.find().lean()
     const map: Record<string, number> = {}
     for (const c of counters) map[c.key] = c.value
@@ -46,7 +46,7 @@ export function analyticsRouter() {
     )
   })
 
-  router.get('/timeseries/:key', requireAuth, requireRole(['admin', 'support']), async (req, res) => {
+  router.get('/analytics/timeseries/:key', requireAuth, requireRole(['admin', 'support']), async (req, res) => {
     const days = Math.min(180, Math.max(1, Number(req.query.days ?? 30)))
     const since = new Date(Date.now() - days * 24 * 3600 * 1000).toISOString().slice(0, 10)
     const docs = await DailyCounterModel.find({ key: req.params.key, date: { $gte: since } }).sort({

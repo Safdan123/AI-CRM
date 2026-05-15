@@ -14,7 +14,10 @@ async function start() {
     const bus = await connectBus({
       servers: env.natsUrl,
       serviceName: 'ai-service',
-      streams: [STREAMS.CAMPAIGNS, STREAMS.CONTENT],
+      streams: [
+        { name: STREAMS.CAMPAIGNS.name, subjects: [...STREAMS.CAMPAIGNS.subjects] },
+        { name: STREAMS.CONTENT.name, subjects: [...STREAMS.CONTENT.subjects] },
+      ],
     })
     log.info('nats connected')
     await startSubscribers(bus)

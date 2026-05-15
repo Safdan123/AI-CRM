@@ -1,11 +1,12 @@
 import type {
   AdminServiceContract,
+  AiInsightsContract,
   AuthServiceContract,
   CampaignServiceContract,
   ReferralServiceContract,
   UserPortalServiceContract,
 } from './contracts'
-import type { ApiResult, Campaign, Referral, UserCampaignAcceptance } from './types'
+import type { ApiResult, Campaign, ChurnScoresPayload, LeadScoresPayload, Referral, ScoreTier, UserCampaignAcceptance } from './types'
 import { apiFetch, apiFetchPublic, apiUpload, setAccessToken, setRefreshToken } from './http'
 
 type AuthResponse = {
@@ -96,10 +97,15 @@ export const realUserPortalService: UserPortalServiceContract = {
   },
 }
 
+/** Meilisearch hit shapes used by `GET /api/search` (ids always indexed as strings). */
+export type SearchCampaignHit = { id: string; name?: string }
+export type SearchReferralHit = { id: string; customerName?: string }
+export type SearchBlogHit = { id: string; title?: string }
+
 export type SearchResults = {
-  referrals: Array<Record<string, unknown>>
-  campaigns: Array<Record<string, unknown>>
-  blogs: Array<Record<string, unknown>>
+  referrals: SearchReferralHit[]
+  campaigns: SearchCampaignHit[]
+  blogs: SearchBlogHit[]
 }
 
 export async function searchGlobal(query: string) {
@@ -136,6 +142,8 @@ export async function updateMyProfile(input: {
   bio?: string
   phone?: string
   preferredCurrency?: string
+  /** Data URL or server URL; backend caps length. */
+  avatarUrl?: string
 }) {
   return apiFetch<ApiResult<ProfilePayload>>('/api/profile/me', {
     method: 'PATCH',
@@ -347,4 +355,25 @@ export async function getReportJob(jobId: string) {
 
 export function downloadReportUrl(jobId: string) {
   return `/api/reports/jobs/${jobId}/download`
+}
+
+export const realAiInsightsService: AiInsightsContract = {
+  async getLeadScores(params?: { tier?: ScoreTier; limit?: number }) {
+    const q = new URLSearchParams()
+    if (params?.tier) q.set('tier', params.tier)
+    if (params?.limit != null) q.set('limit', String(params.limit))
+    const qs = q.toString()
+    return apiFetch<ApiResult<LeadScoresPayload>>(
+      `/api/ai/admin/lead-scores${qs ? `?${qs}` : ''}`,
+    )
+  },
+  async getChurnScores(params?: { tier?: ScoreTier; limit?: number }) {
+    const q = new URLSearchParams()
+    if (params?.tier) q.set('tier', params.tier)
+    if (params?.limit != null) q.set('limit', String(params.limit))
+    const qs = q.toString()
+    return apiFetch<ApiResult<ChurnScoresPayload>>(
+      `/api/ai/admin/churn-scores${qs ? `?${qs}` : ''}`,
+    )
+  },
 }

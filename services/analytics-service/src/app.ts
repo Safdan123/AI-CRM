@@ -14,8 +14,8 @@ export function buildApp() {
 
   app.get('/health', (_req, res) => res.json({ ok: true, service: 'analytics-service' }))
   const router = analyticsRouter()
-  app.use('/api/admin', router)
-  app.use('/api/analytics', router)
+  // Single /api prefix so routes like /admin/kpis resolve to /api/admin/kpis (not /api/admin/admin/kpis).
+  app.use('/api', router)
 
   app.use(notFound)
   app.use(makeErrorHandler('analytics-service'))

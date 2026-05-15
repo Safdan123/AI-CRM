@@ -8,6 +8,7 @@ import { adminUsersRouter, authRouter } from './routes/auth.js'
 
 export function buildApp(bus: EventBus | null) {
   const app = express()
+  app.set('trust proxy', 1)
 
   app.use(helmet())
   app.disable('x-powered-by')

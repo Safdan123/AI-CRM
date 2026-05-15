@@ -5,6 +5,7 @@ import { env } from '../config/env.js'
 import { EmbeddingModel } from '../models/Embedding.js'
 import { getProvider } from '../providers/index.js'
 import { cosine } from '../services/similarity.js'
+import { syntheticInsightsRouter } from './insights.js'
 
 const requireAuth = makeRequireAuth(env.jwtSecret)
 const provider = getProvider()
@@ -27,8 +28,23 @@ async function fetchActiveCampaigns() {
     const r = await fetch(`${env.campaignServiceUrl}/api/campaigns/_internal/by-ids`, {
       headers: { 'x-internal-key': env.jwtSecret },
     })
-    if (!r.ok) return [] as Array<{ id: string; name: string; description?: string; rewardCurrency: string; totalRewardAmount: number }>
-    const json = (await r.json()) as { data?: Array<{ id: string; name: string; description?: string; rewardCurrency: string; totalRewardAmount: number }> }
+    if (!r.ok)
+      return [] as Array<{
+        id: string
+        name: string
+        description?: string
+        rewardCurrency: string
+        totalRewardAmount: number
+      }>
+    const json = (await r.json()) as {
+      data?: Array<{
+        id: string
+        name: string
+        description?: string
+        rewardCurrency: string
+        totalRewardAmount: number
+      }>
+    }
     return json.data ?? []
   } catch {
     return []
@@ -36,9 +52,9 @@ async function fetchActiveCampaigns() {
 }
 
 export function aiRouter() {
-  const router = Router()
+  const root = Router()
 
-  router.get('/recommendations/:userId', requireAuth, async (req, res) => {
+  root.get('/recommendations/:userId', requireAuth, async (req, res) => {
     if (req.auth!.role === 'user' && req.auth!.userId !== req.params.userId) {
       return res.status(403).json({ message: 'Forbidden.' })
     }
@@ -68,7 +84,8 @@ export function aiRouter() {
     return res.json(ok(scored.slice(0, 5)))
   })
 
-  router.post('/chat', requireAuth, async (req, res) => {
+  const ai = Router()
+  ai.post('/chat', requireAuth, async (req, res) => {
     const body = z
       .object({ prompt: z.string().min(1), system: z.string().optional() })
       .parse(req.body)
@@ -87,9 +104,12 @@ export function aiRouter() {
     }
   })
 
-  router.get('/status', async (_req, res) => {
+  ai.get('/status', async (_req, res) => {
     return res.json(ok({ provider: provider.name }))
   })
 
-  return router
+  ai.use('/admin', syntheticInsightsRouter())
+
+  root.use('/ai', ai)
+  return root
 }

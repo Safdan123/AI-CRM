@@ -15,6 +15,8 @@ const updateSchema = z.object({
   bio: z.string().max(500).optional(),
   phone: z.string().max(40).optional(),
   preferredCurrency: z.string().length(3).optional(),
+  /** Client may send a data URL from My Profile; cap keeps oversized payloads out of Mongo. */
+  avatarUrl: z.string().max(4_000_000).optional(),
 })
 
 function shape(p: NonNullable<Awaited<ReturnType<typeof ProfileModel.findOne>>>) {

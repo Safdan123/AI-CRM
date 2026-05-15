@@ -69,11 +69,6 @@ services:
         paths:
           - /socket.io
         strip_path: false
-        protocols:
-          - http
-          - https
-          - ws
-          - wss
 
   - name: content-service
     url: http://content-service:4007
@@ -114,6 +109,7 @@ services:
         paths:
           - /api/recommendations
         strip_path: false
+      # Prefix match: /api/ai, /api/ai/status, /api/ai/admin/..., etc.
       - name: ai
         paths:
           - /api/ai

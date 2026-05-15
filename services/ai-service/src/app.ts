@@ -7,6 +7,7 @@ import { aiRouter } from './routes/ai.js'
 
 export function buildApp() {
   const app = express()
+  app.set('trust proxy', 1)
   app.use(helmet())
   app.disable('x-powered-by')
   app.use(cors({ origin: env.clientUrl, credentials: true }))
