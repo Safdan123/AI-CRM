@@ -37,6 +37,7 @@ import { SignupPage } from '../pages/SignupPage'
 import { TrackReferralsPage } from '../pages/TrackReferralsPage'
 import { AdminBlogsPage } from '../pages/admin/AdminBlogsPage'
 import { AdminNotificationsPage } from '../pages/admin/AdminNotificationsPage'
+import { AdminSettingsPage } from '../pages/admin/AdminSettingsPage'
 import { ContactPage } from '../pages/ContactPage'
 import { AboutPage } from '../pages/AboutPage'
 import { UserDashboardPage } from '../pages/user/UserDashboardPage'
@@ -100,7 +101,7 @@ export function AppRoutes() {
             <Route path="reports" element={<AdminReportsPage />} />
             <Route path="blogs" element={<AdminBlogsPage />} />
             <Route path="notifications" element={<AdminNotificationsPage />} />
-            <Route path="settings" element={<PlaceholderPage title="Admin settings" />} />
+            <Route path="settings" element={<AdminSettingsPage />} />
           </Route>
         </Route>
       </Route>

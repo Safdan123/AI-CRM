@@ -3,9 +3,13 @@ import type {
   ApiResult,
   AuthUser,
   Campaign,
+  ChurnScoresPayload,
+  LeadScoresPayload,
   PaginatedResult,
   Referral,
   ReferralReview,
+  ScoreTier,
+  TimeseriesPoint,
   UserCampaignAcceptance,
 } from './types'
 
@@ -48,6 +52,15 @@ export interface AdminServiceContract {
     referralId: string,
     input: { status: ReferralReview['status']; reviewNote?: string },
   ): Promise<ApiResult<ReferralReview>>
+}
+
+export interface AnalyticsServiceContract {
+  getTimeseries(key: string, days?: number): Promise<ApiResult<TimeseriesPoint[]>>
+}
+
+export interface AiInsightsContract {
+  getLeadScores(params?: { tier?: ScoreTier; limit?: number }): Promise<ApiResult<LeadScoresPayload>>
+  getChurnScores(params?: { tier?: ScoreTier; limit?: number }): Promise<ApiResult<ChurnScoresPayload>>
 }
 
 export interface UserPortalServiceContract {

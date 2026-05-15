@@ -68,9 +68,21 @@ export function DashboardHeader({
       void searchGlobal(query)
         .then((res) => {
           const next = [
-            ...res.data.campaigns.map((c) => ({ kind: 'campaign' as const, id: c.id, label: c.name })),
-            ...res.data.referrals.map((r) => ({ kind: 'referral' as const, id: r.id, label: `${r.id} - ${r.customerName}` })),
-            ...res.data.blogs.map((b) => ({ kind: 'blog' as const, id: b.id, label: b.title })),
+            ...res.data.campaigns.map((c) => ({
+              kind: 'campaign' as const,
+              id: c.id,
+              label: c.name ?? 'Campaign',
+            })),
+            ...res.data.referrals.map((r) => ({
+              kind: 'referral' as const,
+              id: r.id,
+              label: `${r.id} — ${r.customerName ?? 'Referral'}`,
+            })),
+            ...res.data.blogs.map((b) => ({
+              kind: 'blog' as const,
+              id: b.id,
+              label: b.title ?? 'Blog',
+            })),
           ].slice(0, 8)
           setResults(next)
         })

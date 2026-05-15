@@ -1,0 +1,388 @@
+name: ai-crm
+
+x-node-service: &node-service
+  build:
+    context: ..
+    dockerfile: infra/Dockerfile.service
+  restart: unless-stopped
+  volumes:
+    - ../packages:/repo/packages
+    - ../services:/repo/services
+  environment: &shared-env
+    NODE_ENV: development
+    JWT_SECRET: dev-secret-change-me
+    JWT_REFRESH_SECRET: dev-refresh-secret-change-me
+    NATS_URL: nats://nats:4222
+    REDIS_URL: redis://redis:6379
+    CLIENT_URL: http://localhost:5173
+
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  nats:
+    image: nats:2-alpine
+    restart: unless-stopped
+    command: ["-js", "-sd", "/data"]
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    volumes:
+      - nats_data:/data
+
+  meilisearch:
+    image: getmeili/meilisearch:v1.10
+    restart: unless-stopped
+    environment:
+      MEILI_MASTER_KEY: masterKey-mabrook-dev
+      MEILI_ENV: development
+    ports:
+      - "7700:7700"
+    volumes:
+      - meili_data:/meili_data
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+
+  mailpit:
+    image: axllent/mailpit:latest
+    restart: unless-stopped
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
+  ollama:
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+
+  auth-service:
+    <<: *node-service
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.service
+      args:
+        SERVICE: auth-service
+    environment:
+      <<: *shared-env
+      PORT: "4001"
+      MONGODB_URI: mongodb://mongo:27017/auth_db
+      SIGNUP_ALLOW_ROLE_SELECTION: "true"
+    ports:
+      - "4001:4001"
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nats:
+        condition: service_started
+
+  user-profile-service:
+    <<: *node-service
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.service
+      args:
+        SERVICE: user-profile-service
+    environment:
+      <<: *shared-env
+      PORT: "4002"
+      MONGODB_URI: mongodb://mongo:27017/users_db
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: "9000"
+      MINIO_USE_SSL: "false"
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      MINIO_BUCKET: avatars
+      PUBLIC_FILES_URL: http://localhost:9000
+    ports:
+      - "4002:4002"
+    depends_on:
+      mongo:
+        condition: service_healthy
+      minio:
+        condition: service_started
+      nats:
+        condition: service_started
+
+  campaign-service:
+    <<: *node-service
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.service
+      args:
+        SERVICE: campaign-service
+    environment:
+      <<: *shared-env
+      PORT: "4003"
+      MONGODB_URI: mongodb://mongo:27017/campaigns_db
+    ports:
+      - "4003:4003"
+    depends_on:
+      mongo:
+        condition: service_healthy
+      nats:
+        condition: service_started
+
+  referral-service:
+    <<: *node-service
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.service
+      args:
+        SERVICE: referral-service
+    environment:
+      <<: *shared-env
+      PORT: "4004"
+      MONGODB_URI: mongodb://mongo:27017/referrals_db
+      CAMPAIGN_SERVICE_URL: http://campaign-service:4003
+      DEFAULT_REWARD_AMOUNT: "100"
+      DEFAULT_REWARD_CURRENCY: USD
+    ports:
+      - "4004:4004"
+    depends_on:
+      mongo:
+        condition: service_healthy
+      nats:
+        condition: service_started
+
+  reward-service:
+    <<: *node-service
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.service
+      args:
+        SERVICE: reward-service
+    environment:
+      <<: *shared-env
+      PORT: "4005"
+      MONGODB_URI: mongodb://mongo:27017/rewards_db
+      BASE_CURRENCY: USD
+      FX_API_URL: https://api.exchangerate.host/latest
+      FX_TTL_SECONDS: "86400"
+    ports:
+      - "4005:4005"
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nats:
+        condition: service_started
+
+  notification-service:
+    <<: *node-service
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.service
+      args:
+        SERVICE: notification-service
+    environment:
+      <<: *shared-env
+      PORT: "4006"
+      MONGODB_URI: mongodb://mongo:27017/notifications_db
+      SMTP_HOST: mailpit
+      SMTP_PORT: "1025"
+      SMTP_SECURE: "false"
+      SMTP_FROM: "Mabrook Rewards <noreply@mabrook.app>"
+    ports:
+      - "4006:4006"
+    depends_on:
+      mongo:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+      nats:
+        condition: service_started
+
+  content-service:
+    <<: *node-service
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.service
+      args:
+        SERVICE: content-service
+    environment:
+      <<: *shared-env
+      PORT: "4007"
+      MONGODB_URI: mongodb://mongo:27017/content_db
+    ports:
+      - "4007:4007"
+    depends_on:
+      mongo:
+        condition: service_healthy
+      nats:
+        condition: service_started
+
+  search-service:
+    <<: *node-service
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.service
+      args:
+        SERVICE: search-service
+    environment:
+      <<: *shared-env
+      PORT: "4008"
+      MEILI_HOST: http://meilisearch:7700
+      MEILI_API_KEY: masterKey-mabrook-dev
+    ports:
+      - "4008:4008"
+    depends_on:
+      meilisearch:
+        condition: service_started
+      nats:
+        condition: service_started
+
+  analytics-service:
+    <<: *node-service
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.service
+      args:
+        SERVICE: analytics-service
+    environment:
+      <<: *shared-env
+      PORT: "4009"
+      MONGODB_URI: mongodb://mongo:27017/analytics_db
+      AUTH_SERVICE_URL: http://auth-service:4001
+      REWARD_SERVICE_URL: http://reward-service:4005
+    ports:
+      - "4009:4009"
+    depends_on:
+      mongo:
+        condition: service_healthy
+      nats:
+        condition: service_started
+
+  ai-service:
+    <<: *node-service
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.service
+      args:
+        SERVICE: ai-service
+    environment:
+      <<: *shared-env
+      PORT: "4010"
+      MONGODB_URI: mongodb://mongo:27017/ai_db
+      CAMPAIGN_SERVICE_URL: http://campaign-service:4003
+      REFERRAL_SERVICE_URL: http://referral-service:4004
+      AI_PROVIDER: ollama
+      OLLAMA_URL: http://ollama:11434
+      OLLAMA_MODEL: llama3.2
+      OLLAMA_EMBED_MODEL: nomic-embed-text
+    ports:
+      - "4010:4010"
+    depends_on:
+      mongo:
+        condition: service_healthy
+      ollama:
+        condition: service_started
+      nats:
+        condition: service_started
+
+  report-service:
+    <<: *node-service
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.service
+      args:
+        SERVICE: report-service
+    environment:
+      <<: *shared-env
+      PORT: "4011"
+      REWARD_SERVICE_URL: http://reward-service:4005
+    ports:
+      - "4011:4011"
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  kong:
+    image: kong:3.7
+    restart: unless-stopped
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /kong/kong.yml
+      # Re-resolve Docker DNS quickly when a service container is recreated (new IP).
+      KONG_DNS_STALE_TTL: "1"
+      KONG_DNS_ERROR_TTL: "1"
+      KONG_PROXY_ACCESS_LOG: /dev/stdout
+      KONG_ADMIN_ACCESS_LOG: /dev/stdout
+      KONG_PROXY_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_LISTEN: "0.0.0.0:8001"
+      KONG_PROXY_LISTEN: "0.0.0.0:8000"
+    volumes:
+      - ../gateway/kong.yml:/kong/kong.yml:ro
+    ports:
+      - "8000:8000"
+      - "8001:8001"
+    depends_on:
+      - auth-service
+      - user-profile-service
+      - campaign-service
+      - referral-service
+      - reward-service
+      - notification-service
+      - content-service
+      - search-service
+      - analytics-service
+      - ai-service
+      - report-service
+
+  ollama-pull:
+    image: ollama/ollama:latest
+    restart: "no"
+    depends_on:
+      ollama:
+        condition: service_started
+    entrypoint: ["/bin/sh", "-c"]
+    command: >
+      "sleep 10 && OLLAMA_HOST=http://ollama:11434 ollama pull llama3.2 || true && OLLAMA_HOST=http://ollama:11434 ollama pull nomic-embed-text || true"
+
+volumes:
+  mongo_data:
+  redis_data:
+  nats_data:
+  meili_data:
+  minio_data:
+  ollama_data:

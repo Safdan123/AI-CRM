@@ -42,7 +42,14 @@ export const markAllNotificationsReadThunk = createAsyncThunk(
 const notificationsSlice = createSlice({
   name: 'notifications',
   initialState,
-  reducers: {},
+  reducers: {
+    receiveNotification(state, action: { payload: NotificationPayload }) {
+      const exists = state.items.some((n) => n._id === action.payload._id)
+      if (!exists) {
+        state.items = [action.payload, ...state.items]
+      }
+    },
+  },
   extraReducers: (builder) => {
     builder
       .addCase(fetchMyNotifications.pending, (state) => {
@@ -68,4 +75,5 @@ const notificationsSlice = createSlice({
   },
 })
 
+export const { receiveNotification } = notificationsSlice.actions
 export const notificationsReducer = notificationsSlice.reducer
