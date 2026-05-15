@@ -56,6 +56,9 @@ export type AdminKpi = {
   rewardsDistributed: number
 }
 
+/** Daily counter bucket from `GET /api/analytics/timeseries/:key`. */
+export type TimeseriesPoint = { date: string; value: number }
+
 export type UserCampaignAcceptance = {
   userId: string
   campaignId: string

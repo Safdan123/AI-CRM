@@ -9,6 +9,7 @@ import type {
   Referral,
   ReferralReview,
   ScoreTier,
+  TimeseriesPoint,
   UserCampaignAcceptance,
 } from './types'
 
@@ -51,6 +52,10 @@ export interface AdminServiceContract {
     referralId: string,
     input: { status: ReferralReview['status']; reviewNote?: string },
   ): Promise<ApiResult<ReferralReview>>
+}
+
+export interface AnalyticsServiceContract {
+  getTimeseries(key: string, days?: number): Promise<ApiResult<TimeseriesPoint[]>>
 }
 
 export interface AiInsightsContract {

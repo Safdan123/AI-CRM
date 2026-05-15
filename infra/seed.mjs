@@ -8,6 +8,7 @@ const services = [
   ['auth-service', 'seed'],
   ['campaign-service', 'seed'],
   ['content-service', 'seed'],
+  ['analytics-service', 'seed'],
   ['ai-service', 'seed:synthetic'],
 ]
 

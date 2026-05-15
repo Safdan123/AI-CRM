@@ -1,12 +1,22 @@
 import type {
   AdminServiceContract,
   AiInsightsContract,
+  AnalyticsServiceContract,
   AuthServiceContract,
   CampaignServiceContract,
   ReferralServiceContract,
   UserPortalServiceContract,
 } from './contracts'
-import type { ApiResult, Campaign, ChurnScoresPayload, LeadScoresPayload, Referral, ScoreTier, UserCampaignAcceptance } from './types'
+import type {
+  ApiResult,
+  Campaign,
+  ChurnScoresPayload,
+  LeadScoresPayload,
+  Referral,
+  ScoreTier,
+  TimeseriesPoint,
+  UserCampaignAcceptance,
+} from './types'
 import { apiFetch, apiFetchPublic, apiUpload, setAccessToken, setRefreshToken } from './http'
 
 type AuthResponse = {
@@ -67,6 +77,15 @@ export const realReferralService: ReferralServiceContract = {
   },
   async getById(referralId) {
     return apiFetch(`/api/referrals/${referralId}`)
+  },
+}
+
+export const realAnalyticsService: AnalyticsServiceContract = {
+  async getTimeseries(key, days = 30) {
+    const d = Math.min(180, Math.max(1, days))
+    return apiFetch<ApiResult<TimeseriesPoint[]>>(
+      `/api/analytics/timeseries/${encodeURIComponent(key)}?days=${d}`,
+    )
   },
 }
 

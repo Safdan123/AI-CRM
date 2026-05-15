@@ -1,13 +1,14 @@
 import type {
   AdminServiceContract,
   AiInsightsContract,
+  AnalyticsServiceContract,
   AuthServiceContract,
   CampaignServiceContract,
   ReferralServiceContract,
   UserPortalServiceContract,
 } from './contracts'
 import { mockAdminKpis, mockCampaigns, mockReferrals, mockUser } from './mockData'
-import type { ChurnScoreRow, LeadScoreRow } from './types'
+import type { ChurnScoreRow, LeadScoreRow, TimeseriesPoint } from './types'
 
 function wait(ms = 180) {
   return new Promise((resolve) => setTimeout(resolve, ms))
@@ -84,6 +85,27 @@ export const mockReferralService: ReferralServiceContract = {
     return {
       data: mockReferrals.find((r) => r.id === referralId) ?? mockReferrals[0],
     }
+  },
+}
+
+function buildMockTimeseries(days: number): TimeseriesPoint[] {
+  const out: TimeseriesPoint[] = []
+  const now = new Date()
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(now)
+    d.setDate(d.getDate() - i)
+    const date = d.toISOString().slice(0, 10)
+    const wave = Math.sin(i / 5) * 4
+    const value = Math.max(0, Math.round(3 + wave + i * 0.15))
+    out.push({ date, value })
+  }
+  return out
+}
+
+export const mockAnalyticsService: AnalyticsServiceContract = {
+  async getTimeseries(_key, days = 30) {
+    await wait()
+    return { data: buildMockTimeseries(Math.min(180, Math.max(7, days))) }
   },
 }
 

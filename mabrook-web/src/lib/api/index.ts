@@ -1,6 +1,7 @@
 import type {
   AdminServiceContract,
   AiInsightsContract,
+  AnalyticsServiceContract,
   AuthServiceContract,
   CampaignServiceContract,
   ReferralServiceContract,
@@ -9,6 +10,7 @@ import type {
 import {
   mockAdminService,
   mockAiInsightsService,
+  mockAnalyticsService,
   mockAuthService,
   mockCampaignService,
   mockReferralService,
@@ -17,6 +19,7 @@ import {
 import {
   realAdminService,
   realAiInsightsService,
+  realAnalyticsService,
   realAuthService,
   realCampaignService,
   realReferralService,
@@ -48,6 +51,9 @@ export const adminService: AdminServiceContract =
   API_MODE === 'mock'
     ? mockAdminService
     : realAdminService
+
+export const analyticsService: AnalyticsServiceContract =
+  API_MODE === 'mock' ? mockAnalyticsService : realAnalyticsService
 
 export const userPortalService: UserPortalServiceContract =
   API_MODE === 'mock'
