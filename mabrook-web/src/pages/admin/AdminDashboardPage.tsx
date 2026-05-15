@@ -2,7 +2,15 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { paths } from '../../config/paths'
 import { adminService, aiInsightsService, analyticsService } from '../../lib/api'
-import type { AdminKpi, Referral, TimeseriesPoint } from '../../lib/api/types'
+import type {
+  AdminKpi,
+  AiScoresSummary,
+  ChurnScoreRow,
+  LeadScoreRow,
+  Referral,
+  ScoreTier,
+  TimeseriesPoint,
+} from '../../lib/api/types'
 
 const CUSTOMER_GROWTH_KEY = 'users.user'
 
@@ -20,6 +28,12 @@ function formatMoney(n: number) {
   return new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(
     n,
   )
+}
+
+function tierBadgeClass(tier: ScoreTier) {
+  if (tier === 'high') return 'bg-amber-100 text-amber-900 ring-1 ring-amber-200/90'
+  if (tier === 'medium') return 'bg-blue-100 text-blue-900 ring-1 ring-blue-200/90'
+  return 'bg-slate-100 text-slate-800 ring-1 ring-slate-200/90'
 }
 
 function referralStatusStyle(status: Referral['status']) {
@@ -116,13 +130,38 @@ function GrowthChart({ points, emptyLabel }: { points: TimeseriesPoint[]; emptyL
   )
 }
 
+function computeTopBroker(leads: LeadScoreRow[]) {
+  type Agg = { brokerName: string; leadCount: number; sumScore: number; topLead: LeadScoreRow }
+  const map = new Map<string, Agg>()
+  for (const row of leads) {
+    const brokerName = row.brokerName?.trim() || 'Unassigned'
+    const cur = map.get(brokerName) ?? {
+      brokerName,
+      leadCount: 0,
+      sumScore: 0,
+      topLead: row,
+    }
+    cur.leadCount += 1
+    cur.sumScore += row.score
+    if (row.score > cur.topLead.score) cur.topLead = row
+    map.set(brokerName, cur)
+  }
+  let best: Agg | null = null
+  for (const agg of map.values()) {
+    if (!best || agg.sumScore > best.sumScore || (agg.sumScore === best.sumScore && agg.leadCount > best.leadCount)) {
+      best = agg
+    }
+  }
+  return best
+}
+
 export function AdminDashboardPage() {
   const [kpis, setKpis] = useState<AdminKpi | null>(null)
   const [series, setSeries] = useState<TimeseriesPoint[]>([])
-  const [leadHigh, setLeadHigh] = useState(0)
-  const [churnHigh, setChurnHigh] = useState(0)
-  const [churnTotal, setChurnTotal] = useState(0)
-  const [leadTotal, setLeadTotal] = useState(0)
+  const [leads, setLeads] = useState<LeadScoreRow[]>([])
+  const [churn, setChurn] = useState<ChurnScoreRow[]>([])
+  const [leadSummary, setLeadSummary] = useState<AiScoresSummary | null>(null)
+  const [churnSummary, setChurnSummary] = useState<AiScoresSummary | null>(null)
   const [recent, setRecent] = useState<Referral[]>([])
   const [reviewQueue, setReviewQueue] = useState<Referral[]>([])
   const [loading, setLoading] = useState(true)
@@ -136,8 +175,8 @@ export function AdminDashboardPage() {
       const settled = await Promise.allSettled([
         adminService.getKpis(),
         analyticsService.getTimeseries(CUSTOMER_GROWTH_KEY, 30),
-        aiInsightsService.getLeadScores({ limit: 8 }),
-        aiInsightsService.getChurnScores({ limit: 8 }),
+        aiInsightsService.getLeadScores({ limit: 60 }),
+        aiInsightsService.getChurnScores({ limit: 60 }),
         adminService.listReferralsForReview(),
       ])
 
@@ -159,19 +198,19 @@ export function AdminDashboardPage() {
       }
 
       if (leadsR.status === 'fulfilled') {
-        setLeadHigh(leadsR.value.data.summary.high)
-        setLeadTotal(leadsR.value.data.summary.total)
+        setLeads(leadsR.value.data.items)
+        setLeadSummary(leadsR.value.data.summary)
       } else {
-        setLeadHigh(0)
-        setLeadTotal(0)
+        setLeads([])
+        setLeadSummary(null)
       }
 
       if (churnR.status === 'fulfilled') {
-        setChurnHigh(churnR.value.data.summary.high)
-        setChurnTotal(churnR.value.data.summary.total)
+        setChurn(churnR.value.data.items)
+        setChurnSummary(churnR.value.data.summary)
       } else {
-        setChurnHigh(0)
-        setChurnTotal(0)
+        setChurn([])
+        setChurnSummary(null)
       }
 
       if (refR.status === 'fulfilled') {
@@ -250,37 +289,9 @@ export function AdminDashboardPage() {
     return { rows, total }
   }, [reviewQueue])
 
-  const insightBlocks = useMemo(() => {
-    const blocks: { title: string; body: string }[] = []
-    if (churnTotal > 0) {
-      blocks.push({
-        title: 'Churn risk',
-        body: `${formatNumber(churnHigh)} high-risk profile${churnHigh === 1 ? '' : 's'} in the current scoring set — review and prioritize follow-ups in Insights.`,
-      })
-    }
-    if (leadTotal > 0) {
-      blocks.push({
-        title: 'Lead priority',
-        body: `${formatNumber(leadHigh)} lead${leadHigh === 1 ? '' : 's'} marked high priority. Tune outreach from the full lead board.`,
-      })
-    }
-    if (blocks.length < 3) {
-      blocks.push({
-        title: 'Operations snapshot',
-        body:
-          kpis !== null
-            ? `${formatNumber(kpis.conversions)} lifetime conversions with ${formatNumber(kpis.totalReferrals)} referrals logged.`
-            : 'KPIs appear here once loaded from the admin analytics pipeline.',
-      })
-    }
-    if (blocks.length < 3) {
-      blocks.push({
-        title: 'Next step',
-        body: 'Export or deep-dive reports from the Reports area when you need board-ready summaries.',
-      })
-    }
-    return blocks.slice(0, 3)
-  }, [churnHigh, churnTotal, leadHigh, leadTotal, kpis])
+  const topBroker = useMemo(() => computeTopBroker(leads), [leads])
+  const topLead = leads[0] ?? null
+  const topChurn = churn[0] ?? null
 
   return (
     <div className="mx-auto w-full max-w-[1280px]">
@@ -375,7 +386,7 @@ export function AdminDashboardPage() {
           <div className="flex items-start justify-between gap-2">
             <div>
               <h2 className="text-lg font-semibold text-brand">Insights</h2>
-              <p className="mt-1 text-sm text-brand/60">Short signals from your scoring models</p>
+              <p className="mt-1 text-sm text-brand/60">Live fields from lead & churn scores</p>
             </div>
             <Link
               to={paths.admin.aiInsights}
@@ -384,17 +395,134 @@ export function AdminDashboardPage() {
               View all
             </Link>
           </div>
-          <ul className="mt-5 flex flex-1 flex-col gap-3">
-            {insightBlocks.map((item) => (
-              <li
-                key={item.title}
-                className="rounded-xl border border-line/80 bg-white/90 p-4 shadow-sm backdrop-blur-sm transition hover:border-brand/25"
-              >
-                <p className="text-xs font-bold uppercase tracking-wide text-brand/45">{item.title}</p>
-                <p className="mt-1.5 text-sm leading-relaxed text-brand/80">{item.body}</p>
-              </li>
-            ))}
-          </ul>
+
+          <div className="mt-5 flex max-h-[min(520px,70vh)] flex-col gap-3 overflow-y-auto pr-1">
+            {loading && leads.length === 0 && churn.length === 0 ? (
+              <div className="space-y-3">
+                <div className="h-24 animate-pulse rounded-xl bg-footer/70" />
+                <div className="h-24 animate-pulse rounded-xl bg-footer/70" />
+                <div className="h-24 animate-pulse rounded-xl bg-footer/70" />
+              </div>
+            ) : !topLead && !topChurn && !topBroker ? (
+              <p className="rounded-xl border border-dashed border-line bg-white/80 px-4 py-6 text-center text-sm text-brand/60">
+                No scored leads or customers yet. Open{' '}
+                <Link to={paths.admin.aiInsights} className="font-semibold text-brand underline-offset-2 hover:underline">
+                  Insights
+                </Link>{' '}
+                after data is seeded.
+              </p>
+            ) : (
+              <>
+                {topBroker ? (
+                  <section className="rounded-xl border border-line/80 bg-white/95 p-4 shadow-sm">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-[11px] font-bold uppercase tracking-wide text-brand/45">Top broker (by score sum)</p>
+                      <span className="rounded-full bg-footer px-2 py-0.5 text-[11px] font-semibold tabular-nums text-brand/70">
+                        {formatNumber(topBroker.leadCount)} leads
+                      </span>
+                    </div>
+                    <p className="mt-2 truncate text-base font-semibold text-brand">{topBroker.brokerName}</p>
+                    <dl className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                      <div className="rounded-lg bg-footer/60 px-2 py-1.5">
+                        <dt className="text-brand/50">Σ score</dt>
+                        <dd className="font-mono font-semibold text-brand">{formatNumber(topBroker.sumScore)}</dd>
+                      </div>
+                      <div className="rounded-lg bg-footer/60 px-2 py-1.5">
+                        <dt className="text-brand/50">Avg</dt>
+                        <dd className="font-mono font-semibold text-brand">
+                          {formatNumber(Math.round(topBroker.sumScore / topBroker.leadCount))}
+                        </dd>
+                      </div>
+                    </dl>
+                    <p className="mt-2 truncate text-[11px] text-brand/55">
+                      Strongest lead: {topBroker.topLead.displayName} ({formatNumber(topBroker.topLead.score)})
+                    </p>
+                  </section>
+                ) : null}
+
+                {topLead ? (
+                  <section className="rounded-xl border border-line/80 bg-white/95 p-4 shadow-sm">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-[11px] font-bold uppercase tracking-wide text-brand/45">Top lead</p>
+                      <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold capitalize ${tierBadgeClass(topLead.tier)}`}>
+                        {topLead.tier}
+                      </span>
+                    </div>
+                    <p className="mt-2 truncate text-base font-semibold text-brand">{topLead.displayName}</p>
+                    <p className="mt-0.5 truncate text-xs text-brand/60">
+                      {topLead.brokerName || '—'} · {topLead.region} · {topLead.stage}
+                    </p>
+                    <p className="mt-3 font-mono text-2xl font-bold tabular-nums text-brand">{formatNumber(topLead.score)}</p>
+                    {topLead.reasons[0] ? (
+                      <p className="mt-1 line-clamp-2 text-[11px] leading-snug text-brand/55">{topLead.reasons[0]}</p>
+                    ) : null}
+                  </section>
+                ) : null}
+
+                {topChurn ? (
+                  <section className="rounded-xl border border-line/80 bg-white/95 p-4 shadow-sm">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-[11px] font-bold uppercase tracking-wide text-brand/45">Highest churn risk</p>
+                      <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold capitalize ${tierBadgeClass(topChurn.tier)}`}>
+                        {topChurn.tier}
+                      </span>
+                    </div>
+                    <p className="mt-2 truncate text-base font-semibold text-brand">{topChurn.displayName}</p>
+                    <p className="mt-0.5 truncate text-xs text-brand/60">{topChurn.region}</p>
+                    <p className="mt-3 font-mono text-2xl font-bold tabular-nums text-brand">{formatNumber(topChurn.risk)}</p>
+                    {topChurn.reasons[0] ? (
+                      <p className="mt-1 line-clamp-2 text-[11px] leading-snug text-brand/55">{topChurn.reasons[0]}</p>
+                    ) : null}
+                  </section>
+                ) : null}
+
+                {leadSummary && churnSummary ? (
+                  <section className="rounded-xl border border-line/80 bg-white/95 p-4 shadow-sm">
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-brand/45">Tier mix (scored)</p>
+                    <div className="mt-3 grid grid-cols-2 gap-3 text-xs">
+                      <div>
+                        <p className="font-semibold text-brand/70">Leads</p>
+                        <dl className="mt-1.5 space-y-1 font-mono tabular-nums text-brand/85">
+                          <div className="flex justify-between gap-2">
+                            <dt className="text-brand/50">High</dt>
+                            <dd>{formatNumber(leadSummary.high)}</dd>
+                          </div>
+                          <div className="flex justify-between gap-2">
+                            <dt className="text-brand/50">Med</dt>
+                            <dd>{formatNumber(leadSummary.medium)}</dd>
+                          </div>
+                          <div className="flex justify-between gap-2">
+                            <dt className="text-brand/50">Low</dt>
+                            <dd>{formatNumber(leadSummary.low)}</dd>
+                          </div>
+                        </dl>
+                      </div>
+                      <div>
+                        <p className="font-semibold text-brand/70">Churn</p>
+                        <dl className="mt-1.5 space-y-1 font-mono tabular-nums text-brand/85">
+                          <div className="flex justify-between gap-2">
+                            <dt className="text-brand/50">High</dt>
+                            <dd>{formatNumber(churnSummary.high)}</dd>
+                          </div>
+                          <div className="flex justify-between gap-2">
+                            <dt className="text-brand/50">Med</dt>
+                            <dd>{formatNumber(churnSummary.medium)}</dd>
+                          </div>
+                          <div className="flex justify-between gap-2">
+                            <dt className="text-brand/50">Low</dt>
+                            <dd>{formatNumber(churnSummary.low)}</dd>
+                          </div>
+                        </dl>
+                      </div>
+                    </div>
+                    <p className="mt-2 text-center text-[10px] text-brand/45">
+                      Totals · leads {formatNumber(leadSummary.total)} · customers {formatNumber(churnSummary.total)}
+                    </p>
+                  </section>
+                ) : null}
+              </>
+            )}
+          </div>
         </article>
       </section>
 
