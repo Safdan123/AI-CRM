@@ -104,6 +104,10 @@ services:
       PORT: "4001"
       MONGODB_URI: mongodb://mongo:27017/auth_db
       SIGNUP_ALLOW_ROLE_SELECTION: "true"
+      SMTP_HOST: mailpit
+      SMTP_PORT: "1025"
+      SMTP_SECURE: "false"
+      SMTP_FROM: "Mabrook Rewards <noreply@mabrook.app>"
     ports:
       - "4001:4001"
     depends_on:
@@ -173,6 +177,7 @@ services:
       PORT: "4004"
       MONGODB_URI: mongodb://mongo:27017/referrals_db
       CAMPAIGN_SERVICE_URL: http://campaign-service:4003
+      AUTH_SERVICE_URL: http://auth-service:4001
       DEFAULT_REWARD_AMOUNT: "100"
       DEFAULT_REWARD_CURRENCY: USD
     ports:

@@ -1,4 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { authService } from '../lib/api'
+import { getMyLoginActivity } from '../lib/api/realServices'
 
 type FormState = {
   currentPassword: string
@@ -28,34 +30,15 @@ type Device = {
   name: string
   location: string
   time: string
+  success: boolean
 }
 
-const devices: Device[] = [
-  {
-    id: '1',
-    name: 'Dell 24"',
-    location: 'Saudi Arabia',
-    time: '2026 02 12, 9:52:03 AM',
-  },
-  {
-    id: '2',
-    name: 'Macbook Air',
-    location: 'Saudi Arabia',
-    time: '2026 02 12, 9:52:03 AM',
-  },
-  {
-    id: '3',
-    name: 'iPhone 14 Pro Max',
-    location: 'Saudi Arabia',
-    time: '2026 02 12, 9:52:03 AM',
-  },
-  {
-    id: '4',
-    name: 'iPhone 14 Pro Max',
-    location: 'Saudi Arabia',
-    time: '2026 02 12, 9:52:03 AM',
-  },
-]
+function parseUserAgent(ua: string) {
+  if (ua.includes('Chrome')) return 'Chrome browser'
+  if (ua.includes('Firefox')) return 'Firefox browser'
+  if (ua.includes('Safari')) return 'Safari browser'
+  return 'Web browser'
+}
 
 function validateNewPasswordRules(value: string) {
   return {
@@ -78,6 +61,24 @@ export function ChangePasswordPage() {
     newPassword: false,
     confirmPassword: false,
   })
+  const [devices, setDevices] = useState<Device[]>([])
+  const [submitError, setSubmitError] = useState('')
+
+  useEffect(() => {
+    void getMyLoginActivity()
+      .then((res) => {
+        setDevices(
+          res.data.map((row) => ({
+            id: row.id,
+            name: parseUserAgent(row.userAgent),
+            location: row.ip,
+            time: new Date(row.createdAt).toLocaleString(),
+            success: row.success,
+          })),
+        )
+      })
+      .catch(() => setDevices([]))
+  }, [])
 
   const rules = useMemo(() => validateNewPasswordRules(form.newPassword), [form.newPassword])
 
@@ -135,13 +136,35 @@ export function ChangePasswordPage() {
     if (!validate()) return
 
     setLoading(true)
-    setTimeout(() => {
-      setLoading(false)
-      setSaved(true)
-      setShowSuccessBanner(true)
-      setForm(initialForm)
-      setTimeout(() => setSaved(false), 1400)
-    }, 900)
+    setSubmitError('')
+    void authService
+      .changePassword({
+        currentPassword: form.currentPassword,
+        newPassword: form.newPassword,
+      })
+      .then(() => {
+        setSaved(true)
+        setShowSuccessBanner(true)
+        setForm(initialForm)
+        setTimeout(() => setSaved(false), 1400)
+        return getMyLoginActivity()
+      })
+      .then((res) => {
+        if (!res) return
+        setDevices(
+          res.data.map((row) => ({
+            id: row.id,
+            name: parseUserAgent(row.userAgent),
+            location: row.ip,
+            time: new Date(row.createdAt).toLocaleString(),
+            success: row.success,
+          })),
+        )
+      })
+      .catch((err) => {
+        setSubmitError(err instanceof Error ? err.message : 'Failed to change password.')
+      })
+      .finally(() => setLoading(false))
   }
 
   const submitDisabled = loading || !hasAnyInput
@@ -199,6 +222,7 @@ export function ChangePasswordPage() {
       </header>
 
       <form onSubmit={handleSubmit} className="space-y-4">
+        {submitError ? <p className="text-sm text-red-600">{submitError}</p> : null}
         <div>
           <label htmlFor="currentPassword" className={labelClass}>
             Current password
@@ -356,11 +380,14 @@ export function ChangePasswordPage() {
       </form>
 
       <section className="mt-14">
-        <h2 className="text-[28px] font-bold text-brand">Your Devices</h2>
+        <h2 className="text-[28px] font-bold text-brand">Recent login activity</h2>
         <p className="mt-2 text-sm text-brand/70">
-          Devices currently logged in to your account.
+          IP and browser from recent sign-in attempts on your account.
         </p>
         <div className="mt-5 rounded-2xl border border-line bg-white">
+          {devices.length === 0 ? (
+            <p className="px-4 py-6 text-sm text-brand/60">No login activity recorded yet.</p>
+          ) : null}
           {devices.map((device, index) => (
             <article
               key={device.id}
@@ -371,33 +398,21 @@ export function ChangePasswordPage() {
               <div className="min-w-0">
                 <p className="truncate text-sm font-semibold text-brand">{device.name}</p>
                 <p className="mt-1 truncate text-xs text-brand/65">
-                  {device.location}, {device.time}
+                  {device.location} · {device.time}
                 </p>
               </div>
-              <button
-                type="button"
-                className="ml-3 shrink-0 rounded-full p-2 text-brand/70 transition hover:bg-footer hover:text-brand"
-                aria-label={`Logout ${device.name}`}
+              <span
+                className={`ml-3 shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${
+                  device.success
+                    ? 'bg-green-100 text-green-800'
+                    : 'bg-red-100 text-red-800'
+                }`}
               >
-                <svg viewBox="0 0 24 24" className="size-4" fill="none" aria-hidden>
-                  <path
-                    d="M10 17l5-5-5-5M15 12H4m11-7h2a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3h-2"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </button>
+                {device.success ? 'Success' : 'Failed'}
+              </span>
             </article>
           ))}
         </div>
-        <button
-          type="button"
-          className="mt-5 h-10 w-full rounded-full border border-line bg-white text-sm font-semibold text-brand transition hover:bg-footer"
-        >
-          Logout from all devices
-        </button>
       </section>
     </div>
   )

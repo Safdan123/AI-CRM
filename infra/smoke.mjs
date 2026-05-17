@@ -58,7 +58,19 @@ async function run() {
   await req(`/api/admin/referrals/${referral.data.id}/review`, {
     method: 'PATCH',
     headers: { Authorization: `Bearer ${admin.accessToken}` },
-    body: JSON.stringify({ status: 'converted', reviewNote: 'Smoke conversion' }),
+    body: JSON.stringify({ status: 'verified', reviewNote: 'Smoke verified' }),
+  })
+  console.log('  ✓ admin referral review (verified)')
+
+  await req(`/api/admin/referrals/${referral.data.id}/review`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${admin.accessToken}` },
+    body: JSON.stringify({
+      status: 'converted',
+      reviewNote: 'Smoke conversion',
+      investmentAmount: 5000,
+      investmentCurrency: 'USD',
+    }),
   })
   console.log('  ✓ admin referral review (converted)')
 

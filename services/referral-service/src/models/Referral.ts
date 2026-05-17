@@ -1,5 +1,6 @@
 import mongoose, { Schema } from 'mongoose'
-import type { ReferralStatus } from '@aicrm/shared'
+
+export type ReferralStatus = 'pending' | 'verified' | 'converted' | 'rejected'
 
 export interface ReferralDoc {
   _id: mongoose.Types.ObjectId
@@ -8,7 +9,14 @@ export interface ReferralDoc {
   phone: string
   phoneE164?: string
   campaignId: string
+  relationship?: string
+  notes?: string
   status: ReferralStatus
+  investmentAmount?: number
+  investmentCurrency?: string
+  investmentAt?: Date
+  rewardAmount?: number
+  rewardCurrency?: string
   reviewNote?: string
   reviewedBy?: string
   reviewedAt?: Date
@@ -23,12 +31,19 @@ const referralSchema = new Schema<ReferralDoc>(
     phone: { type: String, required: true, trim: true },
     phoneE164: { type: String, index: true },
     campaignId: { type: String, required: true, index: true },
+    relationship: { type: String, trim: true },
+    notes: { type: String, trim: true },
     status: {
       type: String,
       enum: ['pending', 'verified', 'converted', 'rejected'],
       default: 'pending',
       index: true,
     },
+    investmentAmount: { type: Number, min: 0 },
+    investmentCurrency: { type: String, uppercase: true },
+    investmentAt: { type: Date },
+    rewardAmount: { type: Number, min: 0 },
+    rewardCurrency: { type: String, uppercase: true },
     reviewNote: { type: String },
     reviewedBy: { type: String },
     reviewedAt: { type: Date },
@@ -38,5 +53,6 @@ const referralSchema = new Schema<ReferralDoc>(
 
 referralSchema.index({ brokerId: 1, status: 1, createdAt: -1 })
 referralSchema.index({ campaignId: 1, phoneE164: 1 }, { unique: true, sparse: true })
+referralSchema.index({ campaignId: 1, status: 1, createdAt: -1 })
 
 export const ReferralModel = mongoose.model<ReferralDoc>('Referral', referralSchema)

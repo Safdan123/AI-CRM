@@ -100,8 +100,9 @@ export function DashboardHeader({
   }
 
   return (
-    <header className="sticky top-0 z-50 border-b border-line bg-white shadow-sm">
-      <div className="mx-auto flex max-w-[1440px] items-center justify-between gap-4 px-4 py-4 sm:px-8 lg:px-[120px]">
+    <>
+      <header className="fixed inset-x-0 top-0 z-50 border-b border-line/80 bg-white/95 shadow-sm backdrop-blur-md supports-[backdrop-filter]:bg-white/90">
+        <div className="mx-auto flex max-w-[1440px] items-center justify-between gap-4 px-4 py-4 sm:px-8 lg:px-[120px]">
         <MabrookLogo compact />
 
         <div className="relative mr-auto hidden w-full max-w-[420px] md:block">
@@ -198,7 +199,9 @@ export function DashboardHeader({
             </div>
           ) : null}
         </div>
-      </div>
-    </header>
+        </div>
+      </header>
+      <div className="h-[72px] w-full shrink-0" aria-hidden />
+    </>
   )
 }

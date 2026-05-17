@@ -21,13 +21,25 @@ export type AuthUser = {
   role: UserRole
 }
 
+export type LeaderboardTier = {
+  rank: number
+  rewardAmount: number
+}
+
 export type Campaign = {
   id: string
   name: string
+  description?: string
   startDate: string
   endDate: string
   totalRewardAmount: number
+  rewardCurrency?: string
+  rewardPerConversion?: number
+  minInvestmentAmount?: number
+  requireVerifiedBeforeConvert?: boolean
+  leaderboardTiers?: LeaderboardTier[]
   linkCode: string
+  active?: boolean
 }
 
 export type Referral = {
@@ -36,7 +48,39 @@ export type Referral = {
   customerName: string
   phone: string
   campaignId: string
+  relationship?: string
+  notes?: string
   status: ReferralStatus
+  investmentAmount?: number
+  investmentCurrency?: string
+  rewardAmount?: number
+  rewardCurrency?: string
+  createdAt: string
+}
+
+export type LeaderboardRow = {
+  rank: number
+  brokerId: string
+  name: string
+  score: number
+}
+
+export type LeaderboardMeStats = {
+  period: string
+  campaignId: string | null
+  totalReferrals: number
+  conversions: number
+  rewardsEarned: number
+  position: number
+  totalBrokers: number
+}
+
+export type LoginActivityRow = {
+  id: string
+  success: boolean
+  ip: string
+  userAgent: string
+  failureReason?: string
   createdAt: string
 }
 

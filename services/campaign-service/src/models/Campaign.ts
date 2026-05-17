@@ -1,4 +1,5 @@
 import mongoose, { Schema } from 'mongoose'
+import type { LeaderboardTier } from '@aicrm/shared'
 
 export interface CampaignDoc {
   _id: mongoose.Types.ObjectId
@@ -8,6 +9,10 @@ export interface CampaignDoc {
   endDate: string
   totalRewardAmount: number
   rewardCurrency: string
+  rewardPerConversion: number
+  minInvestmentAmount: number
+  requireVerifiedBeforeConvert: boolean
+  leaderboardTiers: LeaderboardTier[]
   linkCode: string
   createdBy: string
   tags: string[]
@@ -15,6 +20,14 @@ export interface CampaignDoc {
   createdAt: Date
   updatedAt: Date
 }
+
+const tierSchema = new Schema<LeaderboardTier>(
+  {
+    rank: { type: Number, required: true, min: 1 },
+    rewardAmount: { type: Number, required: true, min: 0 },
+  },
+  { _id: false },
+)
 
 const campaignSchema = new Schema<CampaignDoc>(
   {
@@ -24,6 +37,10 @@ const campaignSchema = new Schema<CampaignDoc>(
     endDate: { type: String, required: true },
     totalRewardAmount: { type: Number, required: true, min: 0 },
     rewardCurrency: { type: String, default: 'USD', uppercase: true },
+    rewardPerConversion: { type: Number, required: true, min: 0 },
+    minInvestmentAmount: { type: Number, default: 0, min: 0 },
+    requireVerifiedBeforeConvert: { type: Boolean, default: true },
+    leaderboardTiers: { type: [tierSchema], default: [] },
     linkCode: { type: String, required: true, unique: true, trim: true },
     createdBy: { type: String, required: true },
     tags: { type: [String], default: [] },

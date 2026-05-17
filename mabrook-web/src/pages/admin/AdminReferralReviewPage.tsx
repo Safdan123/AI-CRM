@@ -15,6 +15,7 @@ export function AdminReferralReviewPage() {
   const { referralId = '' } = useParams<{ referralId: string }>()
   const [status, setStatus] = useState<ReferralStatus>('pending')
   const [reviewNote, setReviewNote] = useState('')
+  const [investmentAmount, setInvestmentAmount] = useState('')
   const [referral, setReferral] = useState<Referral | null>(null)
   const [error, setError] = useState('')
 
@@ -31,9 +32,20 @@ export function AdminReferralReviewPage() {
 
   async function applyStatus(nextStatus: ReferralStatus) {
     if (!referralId) return
+    setError('')
     try {
-      await adminService.reviewReferral(referralId, { status: nextStatus, reviewNote })
+      const payload: {
+        status: ReferralStatus
+        reviewNote?: string
+        investmentAmount?: number
+      } = { status: nextStatus, reviewNote }
+      if (nextStatus === 'converted' && investmentAmount.trim()) {
+        payload.investmentAmount = Number(investmentAmount.replace(/[$,\s]/g, ''))
+      }
+      await adminService.reviewReferral(referralId, payload)
       setStatus(nextStatus)
+      const refreshed = await referralService.getById(referralId)
+      setReferral(refreshed.data)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update referral.')
     }
@@ -110,10 +122,30 @@ export function AdminReferralReviewPage() {
             </div>
             <div className="rounded-xl bg-footer/60 p-3 md:col-span-2">
               <p className="text-xs text-brand/60">Referral Notes</p>
-              <p className="mt-1 text-sm text-brand/80">
-                Referral status is currently {status}.
-              </p>
+              <p className="mt-1 text-sm text-brand/80">{referral?.notes ?? '—'}</p>
             </div>
+            {referral?.rewardAmount != null ? (
+              <div className="rounded-xl bg-green-50 p-3 md:col-span-2">
+                <p className="text-xs text-brand/60">Reward credited</p>
+                <p className="mt-1 font-semibold text-brand">
+                  {referral.rewardAmount} {referral.rewardCurrency}
+                </p>
+              </div>
+            ) : null}
+          </div>
+
+          <div className="mt-4">
+            <label className="mb-2 block text-sm font-medium text-brand" htmlFor="investment-amount">
+              Investment amount (for conversion)
+            </label>
+            <input
+              id="investment-amount"
+              type="text"
+              value={investmentAmount}
+              onChange={(e) => setInvestmentAmount(e.target.value)}
+              className="mb-2 h-10 w-full max-w-xs rounded-md border border-line px-3 text-sm outline-none focus:border-brand"
+              placeholder="e.g. 5000"
+            />
           </div>
 
           <div className="mt-4">

@@ -83,9 +83,11 @@ export function CreateReferralPage() {
 
     setSaving(true)
     void createReferral({
-      customerName: form.customerName,
-      phone: form.phone,
+      customerName: form.customerName.trim(),
+      phone: form.phone.trim(),
       campaignId: form.campaign,
+      relationship: form.relationship,
+      notes: form.notes.trim(),
     })
       .then(() => {
         navigate(paths.brokerReferrals)

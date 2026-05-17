@@ -14,7 +14,13 @@ import {
 } from '@aicrm/shared'
 import { env } from '../config/env.js'
 import { AcceptanceModel } from '../models/Acceptance.js'
-import { ReferralModel } from '../models/Referral.js'
+import { ReferralModel, type ReferralStatus } from '../models/Referral.js'
+import { fetchCampaign } from '../services/campaignClient.js'
+import {
+  assertStatusTransition,
+  resolveConversionReward,
+  validateConversionCriteria,
+} from '../services/referralWorkflow.js'
 
 const requireAuth = makeRequireAuth(env.jwtSecret)
 
@@ -22,11 +28,15 @@ const referralCreateSchema = z.object({
   customerName: z.string().min(2),
   phone: z.string().min(5),
   campaignId: z.string().min(1),
+  relationship: z.string().optional(),
+  notes: z.string().optional(),
 })
 
 const reviewSchema = z.object({
   status: z.enum(['pending', 'verified', 'converted', 'rejected']),
   reviewNote: z.string().optional(),
+  investmentAmount: z.number().nonnegative().optional(),
+  investmentCurrency: z.string().length(3).optional(),
 })
 
 const acceptSchema = z.object({
@@ -41,21 +51,18 @@ function shape(r: NonNullable<Awaited<ReturnType<typeof ReferralModel.findOne>>>
     customerName: r.customerName,
     phone: r.phone,
     campaignId: r.campaignId,
+    relationship: r.relationship,
+    notes: r.notes,
     status: r.status,
+    investmentAmount: r.investmentAmount,
+    investmentCurrency: r.investmentCurrency,
+    investmentAt: r.investmentAt?.toISOString(),
+    rewardAmount: r.rewardAmount,
+    rewardCurrency: r.rewardCurrency,
+    reviewNote: r.reviewNote,
+    reviewedBy: r.reviewedBy,
+    reviewedAt: r.reviewedAt?.toISOString(),
     createdAt: r.createdAt.toISOString(),
-  }
-}
-
-async function fetchCampaign(campaignId: string) {
-  try {
-    const res = await fetch(`${env.campaignServiceUrl}/api/campaigns/_internal/by-ids?ids=${campaignId}`, {
-      headers: { 'x-internal-key': env.jwtSecret },
-    })
-    if (!res.ok) return null
-    const json = (await res.json()) as { data: Array<{ id: string; totalRewardAmount: number; rewardCurrency: string }> }
-    return json.data[0] ?? null
-  } catch {
-    return null
   }
 }
 
@@ -113,6 +120,8 @@ export function referralsRouter(bus: EventBus | null) {
       phone: input.phone,
       phoneE164,
       campaignId: input.campaignId,
+      relationship: input.relationship,
+      notes: input.notes,
       status: 'pending',
     })
 
@@ -146,6 +155,43 @@ export function adminReferralsRouter(bus: EventBus | null) {
     const referral = await ReferralModel.findById(req.params.referralId)
     if (!referral) return res.status(404).json({ message: 'Referral not found.' })
 
+    try {
+      assertStatusTransition(referral.status as ReferralStatus, input.status)
+    } catch (e) {
+      return res.status(400).json({ message: e instanceof Error ? e.message : 'Invalid status transition.' })
+    }
+
+    const campaign = await fetchCampaign(referral.campaignId)
+
+    if (input.status === 'converted') {
+      try {
+        validateConversionCriteria({
+          campaign,
+          currentStatus: referral.status as ReferralStatus,
+          investmentAmount: input.investmentAmount,
+        })
+      } catch (e) {
+        return res.status(400).json({ message: e instanceof Error ? e.message : 'Conversion not allowed.' })
+      }
+
+      if (referral.status === 'converted') {
+        return res.status(409).json({ message: 'Referral is already converted.' })
+      }
+
+      const { rewardAmount, rewardCurrency } = resolveConversionReward(
+        campaign,
+        env.defaultRewardAmount,
+        env.defaultRewardCurrency,
+      )
+
+      referral.investmentAmount = input.investmentAmount
+      referral.investmentCurrency =
+        input.investmentCurrency ?? campaign?.rewardCurrency ?? env.defaultRewardCurrency
+      referral.investmentAt = new Date()
+      referral.rewardAmount = rewardAmount
+      referral.rewardCurrency = rewardCurrency
+    }
+
     referral.status = input.status
     referral.reviewNote = input.reviewNote
     referral.reviewedBy = req.auth!.userId
@@ -163,15 +209,14 @@ export function adminReferralsRouter(bus: EventBus | null) {
       }
       await bus.publish(EVENTS.REFERRAL_REVIEWED, reviewEvt)
 
-      if (input.status === 'converted') {
-        const camp = await fetchCampaign(referral.campaignId)
+      if (input.status === 'converted' && referral.rewardAmount != null) {
         const evt: ReferralConvertedEvent = {
           referralId: referral.id,
           brokerId: referral.brokerId,
           campaignId: referral.campaignId,
           customerName: referral.customerName,
-          rewardAmount: camp ? Math.min(camp.totalRewardAmount, env.defaultRewardAmount) : env.defaultRewardAmount,
-          rewardCurrency: camp?.rewardCurrency ?? env.defaultRewardCurrency,
+          rewardAmount: referral.rewardAmount,
+          rewardCurrency: referral.rewardCurrency ?? env.defaultRewardCurrency,
           occurredAt: new Date().toISOString(),
         }
         await bus.publish(EVENTS.REFERRAL_CONVERTED, evt)
@@ -185,6 +230,9 @@ export function adminReferralsRouter(bus: EventBus | null) {
         reviewNote: referral.reviewNote,
         reviewedBy: referral.reviewedBy,
         reviewedAt: referral.reviewedAt?.toISOString(),
+        rewardAmount: referral.rewardAmount,
+        rewardCurrency: referral.rewardCurrency,
+        investmentAmount: referral.investmentAmount,
       }),
     )
   })

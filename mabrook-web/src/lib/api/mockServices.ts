@@ -36,6 +36,18 @@ export const mockAuthService: AuthServiceContract = {
     await wait()
     return { data: { ok: true } }
   },
+  async forgotPassword() {
+    await wait()
+    return { data: { message: 'If that email exists, a reset link has been sent.' } }
+  },
+  async resetPassword() {
+    await wait()
+    return { data: { message: 'Password updated.' } }
+  },
+  async changePassword() {
+    await wait()
+    return { data: { message: 'Password changed successfully.' } }
+  },
 }
 
 export const mockCampaignService: CampaignServiceContract = {
@@ -49,6 +61,20 @@ export const mockCampaignService: CampaignServiceContract = {
       data:
         mockCampaigns.find((c) => c.id === campaignId) ??
         mockCampaigns[0],
+    }
+  },
+  async create(input) {
+    await wait()
+    return {
+      data: {
+        id: `mock-${Date.now()}`,
+        name: input.name,
+        startDate: input.startDate,
+        endDate: input.endDate,
+        totalRewardAmount: input.totalRewardAmount,
+        linkCode: 'MOCK-LINK',
+        rewardCurrency: input.rewardCurrency ?? 'USD',
+      },
     }
   },
 }

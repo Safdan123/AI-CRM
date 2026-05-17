@@ -13,6 +13,10 @@ services:
         paths:
           - /api/admin/users
         strip_path: false
+      - name: admin-security
+        paths:
+          - /api/admin/security
+        strip_path: false
 
   - name: user-profile-service
     url: http://user-profile-service:4002
@@ -40,6 +44,10 @@ services:
       - name: admin-referrals
         paths:
           - /api/admin/referrals
+        strip_path: false
+      - name: leaderboard
+        paths:
+          - /api/leaderboard
         strip_path: false
       - name: ref-accept
         paths:
@@ -129,6 +137,8 @@ plugins:
       origins:
         - http://localhost:5173
         - http://127.0.0.1:5173
+        - http://localhost:3000
+        - http://127.0.0.1:3000
       methods:
         - GET
         - POST

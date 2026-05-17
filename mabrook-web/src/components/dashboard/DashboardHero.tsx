@@ -1,34 +1,41 @@
 import { assets } from '../../siteAssets'
 
 /**
- * Hero band — text left, illustration right (stacks on small screens).
+ * Broker dashboard hero — full-bleed image with copy overlaid on the left.
  */
 export function DashboardHero() {
   return (
-    <section className="border-b border-line bg-[#f7fbff] py-10 sm:py-12">
-      <div className="mx-auto flex max-w-[1440px] flex-col items-center gap-6 px-4 sm:px-8 lg:flex-row lg:items-end lg:justify-between lg:gap-8 lg:px-[120px]">
-        <div className="max-w-xl flex-1">
-          <h1 className="text-[clamp(2rem,4vw,3.25rem)] font-black uppercase leading-[0.98] tracking-[-0.03em] text-brand">
-            Start sharing to climb leaderboard
+    <section className="relative min-h-[320px] overflow-hidden border-b border-line bg-[#f9fafb] sm:min-h-[360px] lg:min-h-[400px]">
+      <img
+        src={assets.dashboardHero}
+        alt=""
+        className="absolute inset-x-0 -top-10 h-[115%] min-h-full w-full object-cover object-[82%_top] sm:-top-12 sm:object-[88%_top] lg:-top-14"
+        aria-hidden
+      />
+      <div className="relative z-10 mx-auto flex max-w-[1440px] flex-col justify-center px-4 py-10 sm:px-8 sm:py-12 lg:px-[120px] lg:py-14">
+        <div className="max-w-[520px]">
+          <h1 className="text-[clamp(1.75rem,3.5vw,2.75rem)] font-black uppercase leading-[1.02] tracking-[-0.02em] text-brand">
+            Start sharing to
+            <br />
+            climb leaderboard
           </h1>
-          <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-line bg-white px-3 py-1.5 text-sm font-semibold text-brand">
-            <span className="inline-flex size-4 items-center justify-center rounded-full border border-brand/30 text-[10px]">
-              i
+          <button
+            type="button"
+            className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#e0f2fe] px-4 py-2 text-sm font-semibold text-brand transition hover:bg-[#bae6fd]"
+          >
+            <span
+              className="inline-flex size-5 items-center justify-center rounded-full border border-brand/25 text-[11px] font-bold"
+              aria-hidden
+            >
+              ?
             </span>
             How it works
-          </div>
-          <p className="mt-4 max-w-lg text-sm leading-relaxed text-brand/80 sm:text-base">
-            Share and get to the top. Invite friends using your referral invitation
-            Snap App! Refer as many people as possible, and the top 5 on the
-            leaderboard win 500 cash to invest.
+          </button>
+          <p className="mt-4 max-w-[480px] text-sm leading-relaxed text-brand/75 sm:text-[15px]">
+            Share and get to the front line to use our new Halal Investment Super App!
+            Refer as many people as possible, and the top 5 on the leaderboard will have
+            $1000 cash to invest!
           </p>
-        </div>
-        <div className="w-full max-w-[420px] shrink-0 lg:max-w-[470px]">
-          <img
-            src={assets.dashboardHero}
-            alt=""
-            className="aspect-4/3 w-full rounded-3xl object-cover"
-          />
         </div>
       </div>
     </section>

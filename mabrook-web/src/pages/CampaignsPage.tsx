@@ -33,7 +33,7 @@ function iconButtonClass(active: boolean) {
 export function CampaignsPage() {
   const navigate = useNavigate()
   const role = getTokenPayload()?.role
-  const canCreateCampaign = role === 'admin'
+  const canCreateCampaign = role === 'admin' || role === 'broker'
   const [query, setQuery] = useState('')
   const [rows, setRows] = useState<CampaignRow[]>([])
   const [error, setError] = useState('')

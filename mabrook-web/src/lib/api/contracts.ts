@@ -26,11 +26,30 @@ export interface AuthServiceContract {
   signup(input: SignupInput): Promise<ApiResult<{ user: AuthUser; accessToken: string }>>
   me(): Promise<ApiResult<AuthUser>>
   logout(): Promise<ApiResult<{ ok: true }>>
+  forgotPassword(email: string): Promise<ApiResult<{ message: string }>>
+  resetPassword(input: { token: string; password: string }): Promise<ApiResult<{ message: string }>>
+  changePassword(input: {
+    currentPassword: string
+    newPassword: string
+  }): Promise<ApiResult<{ message: string }>>
 }
 
 export interface CampaignServiceContract {
   list(): Promise<ApiResult<Campaign[]>>
   getById(campaignId: string): Promise<ApiResult<Campaign>>
+  create(input: {
+    name: string
+    description?: string
+    startDate: string
+    endDate: string
+    totalRewardAmount: number
+    rewardCurrency?: string
+    rewardPerConversion?: number
+    minInvestmentAmount?: number
+    requireVerifiedBeforeConvert?: boolean
+    leaderboardTiers?: Array<{ rank: number; rewardAmount: number }>
+    tags?: string[]
+  }): Promise<ApiResult<Campaign>>
 }
 
 export interface ReferralServiceContract {
@@ -50,7 +69,12 @@ export interface AdminServiceContract {
   listReferralsForReview(): Promise<ApiResult<Referral[]>>
   reviewReferral(
     referralId: string,
-    input: { status: ReferralReview['status']; reviewNote?: string },
+    input: {
+      status: ReferralReview['status']
+      reviewNote?: string
+      investmentAmount?: number
+      investmentCurrency?: string
+    },
   ): Promise<ApiResult<ReferralReview>>
 }
 

@@ -26,6 +26,24 @@ type AuthResponse = {
 }
 
 export const realAuthService: AuthServiceContract = {
+  async forgotPassword(email) {
+    return apiFetchPublic<ApiResult<{ message: string }>>('/api/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    })
+  },
+  async resetPassword(input) {
+    return apiFetchPublic<ApiResult<{ message: string }>>('/api/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    })
+  },
+  async changePassword(input) {
+    return apiFetch<ApiResult<{ message: string }>>('/api/auth/change-password', {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    })
+  },
   async login(input) {
     const result = await apiFetchPublic<ApiResult<AuthResponse>>('/api/auth/login', {
       method: 'POST',
@@ -61,6 +79,12 @@ export const realCampaignService: CampaignServiceContract = {
   },
   async getById(campaignId) {
     return apiFetch(`/api/campaigns/${campaignId}`)
+  },
+  async create(input) {
+    return apiFetch<ApiResult<Campaign>>('/api/campaigns', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    })
   },
 }
 
@@ -176,10 +200,73 @@ export async function uploadAvatar(file: File) {
   return apiUpload<ApiResult<{ avatarUrl: string }>>('/api/profile/me/avatar', fd)
 }
 
+export type LeaderboardPeriod = 'day' | 'week' | 'month' | 'all'
+export type LeaderboardMetric = 'referrals' | 'conversions' | 'rewards'
+
+export async function getLeaderboard(params?: {
+  period?: LeaderboardPeriod
+  metric?: LeaderboardMetric
+  campaignId?: string
+  limit?: number
+}) {
+  const q = new URLSearchParams()
+  if (params?.period) q.set('period', params.period)
+  if (params?.metric) q.set('metric', params.metric)
+  if (params?.campaignId) q.set('campaignId', params.campaignId)
+  if (params?.limit != null) q.set('limit', String(params.limit))
+  const qs = q.toString()
+  return apiFetch<
+    ApiResult<{
+      period: LeaderboardPeriod
+      metric: LeaderboardMetric
+      campaignId: string | null
+      rows: Array<{ rank: number; brokerId: string; name: string; score: number }>
+    }>
+  >(`/api/leaderboard${qs ? `?${qs}` : ''}`)
+}
+
+export async function getMyLeaderboardStats(params?: {
+  period?: LeaderboardPeriod
+  campaignId?: string
+}) {
+  const q = new URLSearchParams()
+  if (params?.period) q.set('period', params.period)
+  if (params?.campaignId) q.set('campaignId', params.campaignId)
+  const qs = q.toString()
+  return apiFetch<
+    ApiResult<{
+      period: LeaderboardPeriod
+      campaignId: string | null
+      totalReferrals: number
+      conversions: number
+      rewardsEarned: number
+      position: number
+      totalBrokers: number
+    }>
+  >(`/api/leaderboard/me${qs ? `?${qs}` : ''}`)
+}
+
+export async function getMyLoginActivity() {
+  return apiFetch<
+    ApiResult<
+      Array<{
+        id: string
+        success: boolean
+        ip: string
+        userAgent: string
+        failureReason?: string
+        createdAt: string
+      }>
+    >
+  >('/api/auth/me/login-activity')
+}
+
 export async function createReferral(input: {
   customerName: string
   phone: string
   campaignId: string
+  relationship?: string
+  notes?: string
 }) {
   return apiFetch<ApiResult<Referral>>('/api/referrals', {
     method: 'POST',

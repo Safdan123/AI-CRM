@@ -12,7 +12,7 @@ export function publicAsset(relativePath: string): string {
 
 export const assets = {
   hero: publicAsset('assets/marketing/hero.png'),
-  dashboardHero: publicAsset('assets/marketing/dashboard-hero.jpg'),
+  dashboardHero: publicAsset('assets/marketing/hero-dashboard-broker.png'),
   arrowDown: publicAsset('assets/icons/arrow-down.svg'),
   navClose: publicAsset('assets/icons/nav-close.svg'),
   logoPieces: {
@@ -31,6 +31,7 @@ export const assets = {
     vector11: publicAsset('assets/logo/vector-11.svg'),
   },
   footerLogoMark: publicAsset('assets/logo/footer-mark.svg'),
+  logoIcon: publicAsset('assets/logo/logoIcon.png'),
   socialLinkedin: publicAsset('assets/social/linkedin.svg'),
   socialFacebook: publicAsset('assets/social/facebook.svg'),
   socialInstagram: publicAsset('assets/social/instagram.svg'),
