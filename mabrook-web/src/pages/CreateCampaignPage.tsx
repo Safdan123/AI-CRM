@@ -161,20 +161,28 @@ export function CreateCampaignPage() {
         startDate: form.startDate,
         endDate: form.endDate,
         totalRewardAmount: total,
+        rewardCurrency: 'USD',
         rewardPerConversion: total,
+        minInvestmentAmount: 0,
         leaderboardTiers: tiers,
         tags: [],
       })
       .then(() => navigate(paths.campaigns))
       .catch((err) => {
-        setSubmitError(err instanceof Error ? err.message : 'Failed to create campaign.')
+        const msg = err instanceof Error ? err.message : 'Failed to create campaign.'
+        const role = getTokenPayload()?.role
+        setSubmitError(
+          msg === 'Forbidden.' || msg.includes('Forbidden')
+            ? `The API blocked this request. Restart the backend so campaign-service picks up broker permissions: run "docker compose -f infra/docker-compose.yml restart campaign-service" (or npm run stack:up), then log out and in again as broker@mabrook.app.`
+            : msg,
+        )
       })
       .finally(() => setSaving(false))
   }
 
   return (
     <div className={PAGE_WRAP}>
-      <DashboardHeader userName="Jack Morris" userEmail="jack.morris@mabrook.app" />
+      <DashboardHeader />
       <main className="flex-1 bg-white">
         <section className="mx-auto w-full max-w-[1440px] px-4 py-5 sm:px-8 lg:px-[120px]">
           <p className="text-xs text-brand/55">Home / Campaigns / Create New Campaign</p>

@@ -9,7 +9,7 @@ const PAGE_WRAP =
 export function AdminLayout() {
   return (
     <div className={PAGE_WRAP}>
-      <DashboardHeader userName="Admin User" userEmail="admin@mabrook.app" />
+      <DashboardHeader />
       <div className="flex flex-1 flex-col border-t border-line bg-footer/40 lg:flex-row">
         <aside className="border-b border-line bg-white px-4 py-4 lg:w-72 lg:shrink-0 lg:border-b-0 lg:border-r lg:px-6 lg:py-10">
           <p className="mb-3 hidden text-xs font-semibold uppercase tracking-wider text-brand/50 lg:block">

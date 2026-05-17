@@ -48,9 +48,16 @@ export function makeRequireAuth(secret: string) {
 }
 
 export function requireRole(roles: UserRole[]) {
+  const allowed = new Set<UserRole>(roles)
   return (req: Request, res: Response, next: NextFunction) => {
     if (!req.auth) return res.status(401).json({ message: 'Unauthorized.' })
-    if (!roles.includes(req.auth.role)) return res.status(403).json({ message: 'Forbidden.' })
+    const role = String(req.auth.role).trim() as UserRole
+    if (!allowed.has(role)) {
+      return res.status(403).json({
+        message: 'Forbidden.',
+        detail: { role, allowed: [...allowed] },
+      })
+    }
     next()
   }
 }

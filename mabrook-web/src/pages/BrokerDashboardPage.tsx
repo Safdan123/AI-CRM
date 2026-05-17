@@ -6,7 +6,7 @@ import { LeaderboardStatsCards } from '../components/dashboard/LeaderboardStatsC
 import { LeaderboardTable } from '../components/dashboard/LeaderboardTable'
 import { MyCampaignsSection } from '../components/dashboard/MyCampaignsSection'
 import { Footer } from '../components/layout/Footer'
-import { authService, campaignService } from '../lib/api'
+import { campaignService } from '../lib/api'
 import { getLeaderboard, getMyLeaderboardStats } from '../lib/api/realServices'
 import type { Campaign } from '../lib/api/types'
 import { localLeaderboardAvatar, type CampaignOption, type LeaderboardUser } from '../data/brokerDashboard.mock'
@@ -23,16 +23,7 @@ export function BrokerDashboardPage() {
     yourPosition: 0,
     yourReferrals: 0,
   })
-  const [userName, setUserName] = useState('Broker')
-  const [userEmail, setUserEmail] = useState('')
   const [loadError, setLoadError] = useState('')
-
-  useEffect(() => {
-    void authService.me().then((res) => {
-      setUserName(res.data.fullName)
-      setUserEmail(res.data.email)
-    })
-  }, [])
 
   useEffect(() => {
     void campaignService
@@ -87,7 +78,7 @@ export function BrokerDashboardPage() {
 
   return (
     <div className={PAGE_WRAP}>
-      <DashboardHeader userName={userName} userEmail={userEmail} />
+      <DashboardHeader />
       <main className="flex-1">
         {loadError ? (
           <p className="mx-auto max-w-[1440px] px-4 py-4 text-sm text-red-600 sm:px-8 lg:px-[120px]">
