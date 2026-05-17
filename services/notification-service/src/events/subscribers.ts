@@ -3,6 +3,7 @@ import {
   STREAMS,
   blogPublishedSchema,
   makeLogger,
+  referralAcceptedSchema,
   referralConvertedSchema,
   referralCreatedSchema,
   rewardCreditedSchema,
@@ -53,6 +54,21 @@ export async function startSubscribers(bus: EventBus) {
         evt.brokerId,
         'Referral submitted',
         `Your referral for ${evt.customerName} is pending admin review.`,
+        'referral',
+      )
+    },
+  })
+
+  await bus.subscribe({
+    stream: STREAMS.REFERRALS.name,
+    durable: 'notif-on-referral-accepted',
+    subject: EVENTS.REFERRAL_ACCEPTED,
+    handler: async (raw) => {
+      const evt = referralAcceptedSchema.parse(raw)
+      await dispatch(
+        evt.brokerId,
+        'Invite link used',
+        'A customer joined your campaign via your personal invite link.',
         'referral',
       )
     },

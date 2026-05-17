@@ -7,7 +7,6 @@ import {
   ok,
   requireRole,
   type EventBus,
-  type ReferralAcceptedEvent,
   type ReferralConvertedEvent,
   type ReferralCreatedEvent,
   type ReferralReviewedEvent,
@@ -48,9 +47,12 @@ function shape(r: NonNullable<Awaited<ReturnType<typeof ReferralModel.findOne>>>
   return {
     id: r.id,
     brokerId: r.brokerId,
+    customerUserId: r.customerUserId,
     customerName: r.customerName,
     phone: r.phone,
     campaignId: r.campaignId,
+    source: r.source ?? 'manual',
+    inviteCode: r.inviteCode,
     relationship: r.relationship,
     notes: r.notes,
     status: r.status,
@@ -120,6 +122,7 @@ export function referralsRouter(bus: EventBus | null) {
       phone: input.phone,
       phoneE164,
       campaignId: input.campaignId,
+      source: 'manual',
       relationship: input.relationship,
       notes: input.notes,
       status: 'pending',
@@ -243,38 +246,11 @@ export function adminReferralsRouter(bus: EventBus | null) {
 export function acceptanceRouter(bus: EventBus | null) {
   const router = Router()
 
-  router.post('/ref/:code/accept', requireAuth, requireRole(['user']), async (req, res) => {
-    const body = acceptSchema.parse(req.body)
-    const acceptance = await AcceptanceModel.findOneAndUpdate(
-      { userId: req.auth!.userId, campaignId: body.campaignId },
-      {
-        $setOnInsert: {
-          userId: req.auth!.userId,
-          campaignId: body.campaignId,
-          referralLinkCode: body.referralLinkCode || req.params.code,
-        },
-      },
-      { upsert: true, new: true },
-    )
-
-    if (bus) {
-      const evt: ReferralAcceptedEvent = {
-        userId: req.auth!.userId,
-        campaignId: body.campaignId,
-        referralLinkCode: body.referralLinkCode || req.params.code,
-        occurredAt: new Date().toISOString(),
-      }
-      await bus.publish(EVENTS.REFERRAL_ACCEPTED, evt)
-    }
-
-    return res.status(201).json(
-      ok({
-        userId: acceptance.userId,
-        campaignId: acceptance.campaignId,
-        referralLinkCode: acceptance.referralLinkCode,
-        acceptedAt: acceptance.acceptedAt.toISOString(),
-      }),
-    )
+  router.post('/ref/:code/accept', requireAuth, requireRole(['user']), async (_req, res) => {
+    return res.status(410).json({
+      message:
+        'Legacy campaign-only links are retired. Open your broker invite link (/invite/INV-...) instead.',
+    })
   })
 
   router.get('/users/:userId/accepted-campaigns', requireAuth, async (req, res) => {

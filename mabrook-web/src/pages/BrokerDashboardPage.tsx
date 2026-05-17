@@ -6,8 +6,9 @@ import { LeaderboardStatsCards } from '../components/dashboard/LeaderboardStatsC
 import { LeaderboardTable } from '../components/dashboard/LeaderboardTable'
 import { MyCampaignsSection } from '../components/dashboard/MyCampaignsSection'
 import { Footer } from '../components/layout/Footer'
-import { campaignService } from '../lib/api'
-import { getLeaderboard, getMyLeaderboardStats } from '../lib/api/realServices'
+import { campaignService, referralService } from '../lib/api'
+import { getLeaderboard, getMyLeaderboardStats, getOrCreateBrokerInvite } from '../lib/api/realServices'
+import { getTokenPayload } from '../lib/api/http'
 import type { Campaign } from '../lib/api/types'
 import { localLeaderboardAvatar, type CampaignOption, type LeaderboardUser } from '../data/brokerDashboard.mock'
 
@@ -24,6 +25,13 @@ export function BrokerDashboardPage() {
     yourReferrals: 0,
   })
   const [loadError, setLoadError] = useState('')
+  const [leaderboardError, setLeaderboardError] = useState('')
+  const [campaignReferralCounts, setCampaignReferralCounts] = useState({
+    total: 0,
+    converted: 0,
+  })
+  const [brokerInviteUrl, setBrokerInviteUrl] = useState('')
+  const [inviteError, setInviteError] = useState('')
 
   useEffect(() => {
     void campaignService
@@ -37,11 +45,16 @@ export function BrokerDashboardPage() {
 
   useEffect(() => {
     if (!campaignId) return
-    void Promise.all([
-      getLeaderboard({ period: 'all', metric: 'conversions', campaignId, limit: 50 }),
-      getMyLeaderboardStats({ period: 'all', campaignId }),
-    ])
-      .then(([board, me]) => {
+    let alive = true
+    setLeaderboardError('')
+
+    async function loadLeaderboard() {
+      try {
+        const [board, me] = await Promise.all([
+          getLeaderboard({ period: 'all', metric: 'conversions', campaignId, limit: 50 }),
+          getMyLeaderboardStats({ period: 'all', campaignId }),
+        ])
+        if (!alive) return
         setLeaderboardRows(
           board.data.rows.map((r) => ({
             id: r.brokerId,
@@ -56,10 +69,91 @@ export function BrokerDashboardPage() {
           yourPosition: me.data.position,
           yourReferrals: me.data.conversions,
         })
+      } catch (err) {
+        if (!alive) return
+        const message =
+          err instanceof Error ? err.message : 'Leaderboard could not be loaded.'
+        setLeaderboardError(message)
+        setLeaderboardRows([])
+
+        try {
+          const res = await referralService.listByBroker({ pageSize: 200 })
+          if (!alive) return
+          const forCampaign = res.data.items.filter((r) => r.campaignId === campaignId)
+          const conversions = forCampaign.filter((r) => r.status === 'converted').length
+          const payload = getTokenPayload()
+          const brokerName = payload?.email?.split('@')[0] ?? 'You'
+          setStats({
+            totalPeople: conversions > 0 ? 1 : 0,
+            yourPosition: conversions > 0 ? 1 : 0,
+            yourReferrals: conversions,
+          })
+          if (conversions > 0 && payload?.userId) {
+            setLeaderboardRows([
+              {
+                id: payload.userId,
+                rank: 1,
+                name: brokerName,
+                avatarUrl: localLeaderboardAvatar(0),
+                rewards: `${conversions} conversion${conversions === 1 ? '' : 's'}`,
+              },
+            ])
+            setLeaderboardError(
+              `${message} Showing your conversions from referrals; restart referral-service for full leaderboard.`,
+            )
+          }
+        } catch {
+          if (!alive) return
+          setStats({ totalPeople: 0, yourPosition: 0, yourReferrals: 0 })
+        }
+      }
+    }
+
+    void loadLeaderboard()
+    return () => {
+      alive = false
+    }
+  }, [campaignId])
+
+  useEffect(() => {
+    if (!campaignId) return
+    let alive = true
+    void referralService
+      .listByBroker({ pageSize: 200 })
+      .then((res) => {
+        if (!alive) return
+        const forCampaign = res.data.items.filter((r) => r.campaignId === campaignId)
+        setCampaignReferralCounts({
+          total: forCampaign.length,
+          converted: forCampaign.filter((r) => r.status === 'converted').length,
+        })
       })
       .catch(() => {
-        setLeaderboardRows([])
+        if (!alive) return
+        setCampaignReferralCounts({ total: 0, converted: 0 })
       })
+    return () => {
+      alive = false
+    }
+  }, [campaignId])
+
+  useEffect(() => {
+    if (!campaignId) return
+    let alive = true
+    setInviteError('')
+    void getOrCreateBrokerInvite(campaignId)
+      .then((res) => {
+        if (!alive) return
+        setBrokerInviteUrl(res.data.inviteUrl)
+      })
+      .catch((err) => {
+        if (!alive) return
+        setBrokerInviteUrl('')
+        setInviteError(err instanceof Error ? err.message : 'Could not load invite link.')
+      })
+    return () => {
+      alive = false
+    }
   }, [campaignId])
 
   const campaignOptions: CampaignOption[] = useMemo(
@@ -71,10 +165,6 @@ export function BrokerDashboardPage() {
     () => campaigns.find((c) => c.id === campaignId),
     [campaigns, campaignId],
   )
-
-  const referralUrl = selectedCampaign
-    ? `${window.location.origin}/login?ref=${encodeURIComponent(selectedCampaign.linkCode)}&campaign=${selectedCampaign.id}`
-    : ''
 
   return (
     <div className={PAGE_WRAP}>
@@ -93,10 +183,22 @@ export function BrokerDashboardPage() {
               value={campaignId}
               onChange={setCampaignId}
             />
+            {inviteError ? (
+              <p className="mx-auto max-w-[1440px] px-4 pb-2 text-sm text-red-600 sm:px-8 lg:px-[120px]">
+                {inviteError}
+              </p>
+            ) : null}
             <CampaignReferralSection
               campaignTitle={selectedCampaign?.name ?? 'Campaign'}
-              referralUrl={referralUrl}
+              referralUrl={brokerInviteUrl}
+              referralCount={campaignReferralCounts.total}
+              convertedCount={campaignReferralCounts.converted}
             />
+            {leaderboardError ? (
+              <p className="mx-auto max-w-[1440px] px-4 pb-2 text-sm text-amber-800 sm:px-8 lg:px-[120px]">
+                {leaderboardError}
+              </p>
+            ) : null}
             <LeaderboardStatsCards stats={stats} />
             <LeaderboardTable rows={leaderboardRows} />
           </>

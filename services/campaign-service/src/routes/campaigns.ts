@@ -45,6 +45,7 @@ function shape(c: NonNullable<Awaited<ReturnType<typeof CampaignModel.findOne>>>
     linkCode: c.linkCode,
     tags: c.tags,
     active: c.active,
+    createdBy: c.createdBy,
   }
 }
 

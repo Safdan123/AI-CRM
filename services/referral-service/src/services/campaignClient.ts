@@ -2,6 +2,13 @@ import { env } from '../config/env.js'
 
 export type CampaignSnapshot = {
   id: string
+  name: string
+  description: string
+  startDate: string
+  endDate: string
+  linkCode: string
+  active: boolean
+  createdBy: string
   totalRewardAmount: number
   rewardCurrency: string
   rewardPerConversion: number
@@ -18,6 +25,13 @@ export async function fetchCampaign(campaignId: string): Promise<CampaignSnapsho
     const json = (await res.json()) as {
       data: Array<{
         id: string
+        name: string
+        description?: string
+        startDate: string
+        endDate: string
+        linkCode: string
+        active?: boolean
+        createdBy?: string
         totalRewardAmount: number
         rewardCurrency: string
         rewardPerConversion?: number
@@ -29,6 +43,13 @@ export async function fetchCampaign(campaignId: string): Promise<CampaignSnapsho
     if (!c) return null
     return {
       id: c.id,
+      name: c.name,
+      description: c.description ?? '',
+      startDate: c.startDate,
+      endDate: c.endDate,
+      linkCode: c.linkCode,
+      active: c.active ?? true,
+      createdBy: c.createdBy ?? '',
       totalRewardAmount: c.totalRewardAmount,
       rewardCurrency: c.rewardCurrency,
       rewardPerConversion: c.rewardPerConversion ?? c.totalRewardAmount,

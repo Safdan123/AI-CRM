@@ -45,9 +45,12 @@ export type Campaign = {
 export type Referral = {
   id: string
   brokerId: string
+  customerUserId?: string
   customerName: string
   phone: string
   campaignId: string
+  source?: ReferralSource
+  inviteCode?: string
   relationship?: string
   notes?: string
   status: ReferralStatus
@@ -103,12 +106,48 @@ export type AdminKpi = {
 /** Daily counter bucket from `GET /api/analytics/timeseries/:key`. */
 export type TimeseriesPoint = { date: string; value: number }
 
+export type BrokerInviteLink = {
+  inviteCode: string
+  brokerId: string
+  campaignId: string
+  active: boolean
+  inviteUrl: string
+  createdAt: string
+}
+
+export type InviteResolvePayload = {
+  inviteCode: string
+  broker: { id: string; name: string }
+  campaign: {
+    id: string
+    name: string
+    description: string
+    startDate: string
+    endDate: string
+    rewardCurrency: string
+    rewardPerConversion: number
+    minInvestmentAmount: number
+  }
+}
+
+export type InviteAcceptResult = {
+  alreadyAccepted: boolean
+  userId: string
+  brokerId: string
+  campaignId: string
+  inviteCode: string
+  referralId?: string
+  acceptedAt: string
+}
+
 export type UserCampaignAcceptance = {
   userId: string
   campaignId: string
-  referralLinkCode: string
+  referralLinkCode?: string
   acceptedAt: string
 }
+
+export type ReferralSource = 'manual' | 'invite_link'
 
 export type ScoreTier = 'high' | 'medium' | 'low'
 

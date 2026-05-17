@@ -49,6 +49,14 @@ services:
         paths:
           - /api/leaderboard
         strip_path: false
+      - name: broker-invites
+        paths:
+          - /api/brokers/me/invites
+        strip_path: false
+      - name: invites
+        paths:
+          - /api/invites
+        strip_path: false
       - name: ref-accept
         paths:
           - ~/^/api/ref/[^/]+/accept$

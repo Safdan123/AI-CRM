@@ -44,6 +44,8 @@ import { UserDashboardPage } from '../pages/user/UserDashboardPage'
 import { UserNotificationsPage } from '../pages/user/UserNotificationsPage'
 import { UserProfilePage } from '../pages/user/UserProfilePage'
 import { UserRewardsPage } from '../pages/user/UserRewardsPage'
+import { UserCampaignDetailPage } from '../pages/user/UserCampaignDetailPage'
+import { InviteLandingPage } from '../pages/InviteLandingPage'
 
 /**
  * Application routes — add new `Route` entries as screens are built.
@@ -56,6 +58,7 @@ export function AppRoutes() {
       <Route path={paths.about} element={<AboutPage />} />
       <Route path={paths.blogs} element={<BlogsPage />} />
       <Route path={paths.contact} element={<ContactPage />} />
+      <Route path="/invite/:inviteCode" element={<InviteLandingPage />} />
       <Route element={<RequireAuth />}>
         <Route element={<RequireRole allow={['broker', 'admin', 'support']} />}>
           <Route path={paths.dashboard} element={<BrokerDashboardPage />} />
@@ -82,6 +85,7 @@ export function AppRoutes() {
           <Route path={paths.userBase} element={<UserLayout />}>
             <Route index element={<UserDashboardPage />} />
             <Route path="profile" element={<UserProfilePage />} />
+            <Route path="campaigns/:campaignId" element={<UserCampaignDetailPage />} />
             <Route path="rewards" element={<UserRewardsPage />} />
             <Route path="notifications" element={<UserNotificationsPage />} />
           </Route>

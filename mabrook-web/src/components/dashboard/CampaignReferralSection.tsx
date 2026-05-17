@@ -14,11 +14,16 @@ const SHARE_ICONS = [
 type Props = {
   campaignTitle: string
   referralUrl: string
+  /** Broker-submitted referrals for this campaign (from API). */
+  referralCount?: number
+  convertedCount?: number
 }
 
 export function CampaignReferralSection({
   campaignTitle,
   referralUrl,
+  referralCount = 0,
+  convertedCount = 0,
 }: Props) {
   const [copied, setCopied] = useState(false)
 
@@ -97,23 +102,31 @@ export function CampaignReferralSection({
           </div>
         </div>
         <p className="mt-3 text-xs text-brand/65">
-          Link-based referrals are the primary flow. Share this unique campaign link
-          to acquire and track conversions.
+          This is your personal broker invite link for this campaign. Customers who open it,
+          sign up, and join are attributed to you automatically.
         </p>
         <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
           <div className="rounded-xl border border-line bg-footer/55 p-3">
-            <p className="text-xs text-brand/60">Link Clicks</p>
-            <p className="mt-1 text-2xl font-bold text-brand">1,420</p>
+            <p className="text-xs text-brand/60">Your referrals (this campaign)</p>
+            <p className="mt-1 text-2xl font-bold text-brand">{referralCount}</p>
           </div>
           <div className="rounded-xl border border-line bg-footer/55 p-3">
-            <p className="text-xs text-brand/60">Signups from Link</p>
-            <p className="mt-1 text-2xl font-bold text-brand">204</p>
+            <p className="text-xs text-brand/60">Converted</p>
+            <p className="mt-1 text-2xl font-bold text-brand">{convertedCount}</p>
           </div>
           <div className="rounded-xl border border-line bg-footer/55 p-3">
-            <p className="text-xs text-brand/60">Conversion Rate</p>
-            <p className="mt-1 text-2xl font-bold text-brand">14.3%</p>
+            <p className="text-xs text-brand/60">Conversion rate</p>
+            <p className="mt-1 text-2xl font-bold text-brand">
+              {referralCount > 0
+                ? `${Math.round((convertedCount / referralCount) * 100)}%`
+                : '—'}
+            </p>
           </div>
         </div>
+        <p className="mt-2 text-xs text-brand/55">
+          Link click tracking is not wired yet; counts above are from referrals you submit in
+          Referrals.
+        </p>
       </div>
     </section>
   )

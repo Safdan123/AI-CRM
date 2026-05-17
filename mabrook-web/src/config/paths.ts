@@ -34,12 +34,14 @@ export const paths = {
   user: {
     dashboard: '/user',
     profile: '/user/profile',
+    campaignDetail: (campaignId: string) => `/user/campaigns/${campaignId}`,
     rewards: '/user/rewards',
     notifications: '/user/notifications',
   },
   /** Account settings (profile, password) — same shell as broker app. */
   settings: '/settings',
   settingsChangePassword: '/settings/change-password',
+  invite: (inviteCode: string) => `/invite/${inviteCode}`,
   login: '/login',
   signup: '/signup',
   auth: {

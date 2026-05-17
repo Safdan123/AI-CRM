@@ -73,8 +73,11 @@ export type ReferralConvertedEvent = z.infer<typeof referralConvertedSchema>
 
 export const referralAcceptedSchema = z.object({
   userId: z.string(),
+  brokerId: z.string(),
   campaignId: z.string(),
-  referralLinkCode: z.string(),
+  inviteCode: z.string(),
+  referralId: z.string().optional(),
+  referralLinkCode: z.string().optional(),
   occurredAt: z.string(),
 })
 export type ReferralAcceptedEvent = z.infer<typeof referralAcceptedSchema>

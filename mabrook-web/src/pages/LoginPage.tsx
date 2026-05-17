@@ -5,7 +5,8 @@ import { AuthShell } from '../components/auth/AuthShell'
 import { SocialAuthButtons } from '../components/auth/SocialAuthButtons'
 import { paths } from '../config/paths'
 import { authService } from '../lib/api'
-import { getDashboardRouteByRole } from '../lib/auth/roleRoute'
+import { navigateAfterAuth } from '../lib/referral/afterAuthRedirect'
+import { getPendingInviteCode } from '../lib/referral/inviteStorage'
 
 export function LoginPage() {
   const navigate = useNavigate()
@@ -21,7 +22,7 @@ export function LoginPage() {
 
     try {
       const response = await authService.login({ email, password })
-      navigate(getDashboardRouteByRole(response.data.user.role))
+      await navigateAfterAuth(response.data.user.role, navigate)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to login. Please try again.')
     } finally {
@@ -35,7 +36,10 @@ export function LoginPage() {
       subtitle={
         <>
           New to Mabrook?{' '}
-          <Link to={paths.signup} className="font-semibold text-brand underline">
+          <Link
+            to={getPendingInviteCode() ? `${paths.signup}?from=invite` : paths.signup}
+            className="font-semibold text-brand underline"
+          >
             Sign up
           </Link>
         </>

@@ -9,8 +9,11 @@ import type {
 } from './contracts'
 import type {
   ApiResult,
+  BrokerInviteLink,
   Campaign,
   ChurnScoresPayload,
+  InviteAcceptResult,
+  InviteResolvePayload,
   LeadScoresPayload,
   Referral,
   ScoreTier,
@@ -223,6 +226,31 @@ export async function getLeaderboard(params?: {
       rows: Array<{ rank: number; brokerId: string; name: string; score: number }>
     }>
   >(`/api/leaderboard${qs ? `?${qs}` : ''}`)
+}
+
+export async function getOrCreateBrokerInvite(campaignId: string) {
+  return apiFetch<ApiResult<BrokerInviteLink>>('/api/brokers/me/invites', {
+    method: 'POST',
+    body: JSON.stringify({ campaignId }),
+  })
+}
+
+export async function listBrokerInvites(campaignId?: string) {
+  const q = campaignId ? `?campaignId=${encodeURIComponent(campaignId)}` : ''
+  return apiFetch<ApiResult<BrokerInviteLink[]>>(`/api/brokers/me/invites${q}`)
+}
+
+export async function resolveBrokerInvitePublic(inviteCode: string) {
+  return apiFetchPublic<ApiResult<InviteResolvePayload>>(
+    `/api/invites/${encodeURIComponent(inviteCode.trim().toUpperCase())}`,
+  )
+}
+
+export async function acceptBrokerInvite(inviteCode: string) {
+  return apiFetch<ApiResult<InviteAcceptResult>>(
+    `/api/invites/${encodeURIComponent(inviteCode.trim().toUpperCase())}/accept`,
+    { method: 'POST', body: JSON.stringify({}) },
+  )
 }
 
 export async function getMyLeaderboardStats(params?: {

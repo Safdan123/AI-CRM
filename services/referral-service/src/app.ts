@@ -3,6 +3,7 @@ import express from 'express'
 import helmet from 'helmet'
 import { makeErrorHandler, notFound, type EventBus } from '@aicrm/shared'
 import { env } from './config/env.js'
+import { brokerInvitesRouter, publicInvitesRouter } from './routes/invites.js'
 import { leaderboardRouter } from './routes/leaderboard.js'
 import { acceptanceRouter, adminReferralsRouter, referralsRouter } from './routes/referrals.js'
 
@@ -15,6 +16,8 @@ export function buildApp(bus: EventBus | null) {
 
   app.get('/health', (_req, res) => res.json({ ok: true, service: 'referral-service' }))
   app.use('/api/leaderboard', leaderboardRouter())
+  app.use('/api/brokers', brokerInvitesRouter())
+  app.use('/api/invites', publicInvitesRouter(bus))
   app.use('/api/referrals', referralsRouter(bus))
   app.use('/api/admin/referrals', adminReferralsRouter(bus))
   app.use('/api', acceptanceRouter(bus))
