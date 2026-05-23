@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { authService, userPortalService } from '../../lib/api'
+import { paths } from '../../config/paths'
 import type { Campaign } from '../../lib/api/types'
 
 export function UserDashboardPage() {
@@ -42,16 +44,22 @@ export function UserDashboardPage() {
       <section className="mt-6 rounded-2xl border border-line bg-white p-5">
         <h2 className="text-lg font-semibold text-brand">Campaigns Joined Via Referral Link</h2>
         <div className="mt-3 space-y-2">
+          {acceptedCampaigns.length === 0 ? (
+            <p className="text-sm text-brand/65">
+              No campaigns yet. Open a broker invite link to join a campaign.
+            </p>
+          ) : null}
           {acceptedCampaigns.map((campaign) => (
-            <div
+            <Link
               key={campaign.id}
-              className="flex items-center justify-between rounded-lg bg-footer/60 px-3 py-2 text-sm"
+              to={paths.user.campaignDetail(campaign.id)}
+              className="flex items-center justify-between rounded-lg bg-footer/60 px-3 py-2 text-sm transition hover:bg-footer"
             >
               <span className="font-medium text-brand">{campaign.name}</span>
               <span className="text-brand/70">
                 {campaign.startDate} to {campaign.endDate}
               </span>
-            </div>
+            </Link>
           ))}
         </div>
       </section>

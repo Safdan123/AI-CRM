@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { DashboardHeader } from '../components/dashboard/DashboardHeader'
 import { Footer } from '../components/layout/Footer'
 import { paths } from '../config/paths'
+import { campaignService } from '../lib/api'
 import { getTokenPayload } from '../lib/api/http'
 
 type PositionReward = {
@@ -105,10 +106,11 @@ function hasErrors(errors: FormErrors) {
 export function CreateCampaignPage() {
   const navigate = useNavigate()
   const role = getTokenPayload()?.role
-  const canCreateCampaign = role === 'admin'
+  const canCreateCampaign = role === 'admin' || role === 'broker'
   const [form, setForm] = useState<FormState>(initialForm)
   const [submitted, setSubmitted] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [submitError, setSubmitError] = useState('')
 
   const errors = useMemo(() => validateForm(form), [form])
   const invalid = hasErrors(errors)
@@ -144,23 +146,43 @@ export function CreateCampaignPage() {
     if (invalid) return
 
     setSaving(true)
-    const payload = {
-      ...form,
-      createdAt: new Date().toISOString(),
-    }
-    window.setTimeout(() => {
-      const current = localStorage.getItem('mockCampaignCreations')
-      const parsed = current ? (JSON.parse(current) as unknown[]) : []
-      localStorage.setItem('mockCampaignCreations', JSON.stringify([payload, ...parsed]))
-      console.log('Create campaign payload:', payload)
-      setSaving(false)
-      navigate(paths.campaigns)
-    }, 700)
+    setSubmitError('')
+    const total = Number(form.totalRewardAmount.replace(/[$,\s]/g, ''))
+    const tiers = form.positions
+      .filter((p) => p.position.trim() && p.reward.trim())
+      .map((p) => ({
+        rank: Number(p.position),
+        rewardAmount: Number(p.reward.replace(/[$,\s]/g, '')),
+      }))
+
+    void campaignService
+      .create({
+        name: form.campaignName.trim(),
+        startDate: form.startDate,
+        endDate: form.endDate,
+        totalRewardAmount: total,
+        rewardCurrency: 'USD',
+        rewardPerConversion: total,
+        minInvestmentAmount: 0,
+        leaderboardTiers: tiers,
+        tags: [],
+      })
+      .then(() => navigate(paths.campaigns))
+      .catch((err) => {
+        const msg = err instanceof Error ? err.message : 'Failed to create campaign.'
+        const role = getTokenPayload()?.role
+        setSubmitError(
+          msg === 'Forbidden.' || msg.includes('Forbidden')
+            ? `The API blocked this request. Restart the backend so campaign-service picks up broker permissions: run "docker compose -f infra/docker-compose.yml restart campaign-service" (or npm run stack:up), then log out and in again as broker@mabrook.app.`
+            : msg,
+        )
+      })
+      .finally(() => setSaving(false))
   }
 
   return (
     <div className={PAGE_WRAP}>
-      <DashboardHeader userName="Jack Morris" userEmail="jack.morris@mabrook.app" />
+      <DashboardHeader />
       <main className="flex-1 bg-white">
         <section className="mx-auto w-full max-w-[1440px] px-4 py-5 sm:px-8 lg:px-[120px]">
           <p className="text-xs text-brand/55">Home / Campaigns / Create New Campaign</p>
@@ -191,6 +213,11 @@ export function CreateCampaignPage() {
             </div>
 
             <form onSubmit={handleCreate}>
+              {submitError ? (
+                <p className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  {submitError}
+                </p>
+              ) : null}
               {!canCreateCampaign ? (
                 <p className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
                   Only admins can create campaigns.

@@ -1,0 +1,32 @@
+{
+  "name": "ai-crm",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AI-CRM (Mabrook Rewards) — microservices monorepo",
+  "workspaces": [
+    "packages/*",
+    "services/*"
+  ],
+  "scripts": {
+    "dev:auth": "npm --workspace services/auth-service run dev",
+    "dev:user": "npm --workspace services/user-profile-service run dev",
+    "dev:campaign": "npm --workspace services/campaign-service run dev",
+    "dev:referral": "npm --workspace services/referral-service run dev",
+    "dev:reward": "npm --workspace services/reward-service run dev",
+    "dev:notification": "npm --workspace services/notification-service run dev",
+    "dev:content": "npm --workspace services/content-service run dev",
+    "dev:search": "npm --workspace services/search-service run dev",
+    "dev:analytics": "npm --workspace services/analytics-service run dev",
+    "dev:ai": "npm --workspace services/ai-service run dev",
+    "dev:report": "npm --workspace services/report-service run dev",
+    "dev:web": "npm --workspace mabrook-web run dev",
+    "stack:up": "docker compose -f infra/docker-compose.yml up -d --build",
+    "stack:down": "docker compose -f infra/docker-compose.yml down",
+    "stack:logs": "docker compose -f infra/docker-compose.yml logs -f",
+    "stack:reset": "docker compose -f infra/docker-compose.yml down -v",
+    "seed": "node infra/seed.mjs",
+    "smoke": "node infra/smoke.mjs",
+    "seed:synthetic-ai": "docker compose -f infra/docker-compose.yml exec -T ai-service npm run seed:synthetic",
+    "seed:analytics": "docker compose -f infra/docker-compose.yml exec -T analytics-service npm run seed"
+  }
+}

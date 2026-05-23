@@ -1,5 +1,7 @@
 import type {
   AdminServiceContract,
+  AiInsightsContract,
+  AnalyticsServiceContract,
   AuthServiceContract,
   CampaignServiceContract,
   ReferralServiceContract,
@@ -7,6 +9,8 @@ import type {
 } from './contracts'
 import {
   mockAdminService,
+  mockAiInsightsService,
+  mockAnalyticsService,
   mockAuthService,
   mockCampaignService,
   mockReferralService,
@@ -14,6 +18,8 @@ import {
 } from './mockServices'
 import {
   realAdminService,
+  realAiInsightsService,
+  realAnalyticsService,
   realAuthService,
   realCampaignService,
   realReferralService,
@@ -26,7 +32,7 @@ import {
  * - set VITE_API_MODE=real to use backend services
  */
 const API_MODE: 'mock' | 'real' =
-  (import.meta.env.VITE_API_MODE as 'mock' | 'real' | undefined) ?? 'mock'
+  (import.meta.env.VITE_API_MODE as 'mock' | 'real' | undefined) ?? 'real'
 
 export const authService: AuthServiceContract =
   API_MODE === 'mock' ? mockAuthService : realAuthService
@@ -46,7 +52,13 @@ export const adminService: AdminServiceContract =
     ? mockAdminService
     : realAdminService
 
+export const analyticsService: AnalyticsServiceContract =
+  API_MODE === 'mock' ? mockAnalyticsService : realAnalyticsService
+
 export const userPortalService: UserPortalServiceContract =
   API_MODE === 'mock'
     ? mockUserPortalService
     : realUserPortalService
+
+export const aiInsightsService: AiInsightsContract =
+  API_MODE === 'mock' ? mockAiInsightsService : realAiInsightsService

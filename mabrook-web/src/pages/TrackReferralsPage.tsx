@@ -4,6 +4,7 @@ import { DashboardHeader } from '../components/dashboard/DashboardHeader'
 import { Footer } from '../components/layout/Footer'
 import { paths } from '../config/paths'
 import { referralService } from '../lib/api'
+import { getTokenPayload } from '../lib/api/http'
 import type { ReferralStatus } from '../lib/api/types'
 
 type ReferralRow = {
@@ -27,6 +28,8 @@ function statusClass(status: ReferralStatus) {
 
 export function TrackReferralsPage() {
   const navigate = useNavigate()
+  const role = getTokenPayload()?.role
+  const canCreateReferral = role === 'admin' || role === 'broker'
   const [rows, setRows] = useState<ReferralRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -77,16 +80,27 @@ export function TrackReferralsPage() {
 
   return (
     <div className={PAGE_WRAP}>
-      <DashboardHeader userName="Jack Morris" userEmail="jack.morris@mabrook.app" />
+      <DashboardHeader />
       <main className="flex-1 bg-white">
         <section className="mx-auto w-full max-w-[1440px] px-4 py-5 sm:px-8 lg:px-[120px]">
           <p className="text-xs text-brand/55">Home / Referrals</p>
         </section>
         <section className="border-t border-line pb-16 pt-7">
           <div className="mx-auto w-full max-w-[1440px] px-4 sm:px-8 lg:px-[120px]">
-            <h1 className="mb-5 text-[34px] font-bold leading-tight text-brand max-sm:text-3xl">
-              Track Referrals
-            </h1>
+            <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <h1 className="text-[34px] font-bold leading-tight text-brand max-sm:text-3xl">
+                Track Referrals
+              </h1>
+              {canCreateReferral ? (
+                <button
+                  type="button"
+                  onClick={() => navigate(paths.brokerReferralCreate)}
+                  className="h-10 shrink-0 rounded-full bg-brand px-5 text-sm font-semibold text-white transition hover:opacity-90"
+                >
+                  Create referral
+                </button>
+              ) : null}
+            </div>
 
             <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-5">
               <input

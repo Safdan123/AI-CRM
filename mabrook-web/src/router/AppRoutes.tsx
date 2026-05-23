@@ -37,12 +37,15 @@ import { SignupPage } from '../pages/SignupPage'
 import { TrackReferralsPage } from '../pages/TrackReferralsPage'
 import { AdminBlogsPage } from '../pages/admin/AdminBlogsPage'
 import { AdminNotificationsPage } from '../pages/admin/AdminNotificationsPage'
+import { AdminSettingsPage } from '../pages/admin/AdminSettingsPage'
 import { ContactPage } from '../pages/ContactPage'
 import { AboutPage } from '../pages/AboutPage'
 import { UserDashboardPage } from '../pages/user/UserDashboardPage'
 import { UserNotificationsPage } from '../pages/user/UserNotificationsPage'
 import { UserProfilePage } from '../pages/user/UserProfilePage'
 import { UserRewardsPage } from '../pages/user/UserRewardsPage'
+import { UserCampaignDetailPage } from '../pages/user/UserCampaignDetailPage'
+import { InviteLandingPage } from '../pages/InviteLandingPage'
 
 /**
  * Application routes — add new `Route` entries as screens are built.
@@ -55,6 +58,7 @@ export function AppRoutes() {
       <Route path={paths.about} element={<AboutPage />} />
       <Route path={paths.blogs} element={<BlogsPage />} />
       <Route path={paths.contact} element={<ContactPage />} />
+      <Route path="/invite/:inviteCode" element={<InviteLandingPage />} />
       <Route element={<RequireAuth />}>
         <Route element={<RequireRole allow={['broker', 'admin', 'support']} />}>
           <Route path={paths.dashboard} element={<BrokerDashboardPage />} />
@@ -81,6 +85,7 @@ export function AppRoutes() {
           <Route path={paths.userBase} element={<UserLayout />}>
             <Route index element={<UserDashboardPage />} />
             <Route path="profile" element={<UserProfilePage />} />
+            <Route path="campaigns/:campaignId" element={<UserCampaignDetailPage />} />
             <Route path="rewards" element={<UserRewardsPage />} />
             <Route path="notifications" element={<UserNotificationsPage />} />
           </Route>
@@ -100,7 +105,7 @@ export function AppRoutes() {
             <Route path="reports" element={<AdminReportsPage />} />
             <Route path="blogs" element={<AdminBlogsPage />} />
             <Route path="notifications" element={<AdminNotificationsPage />} />
-            <Route path="settings" element={<PlaceholderPage title="Admin settings" />} />
+            <Route path="settings" element={<AdminSettingsPage />} />
           </Route>
         </Route>
       </Route>

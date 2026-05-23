@@ -28,15 +28,9 @@ const USER_MENU_ITEMS = [
   { label: 'Notifications', to: paths.user.notifications },
 ] as const
 
-type DashboardHeaderProps = {
-  userName?: string
-  userEmail?: string
-}
-
-export function DashboardHeader({
-  userName = 'Alex Broker',
-  userEmail = 'alex.broker@mabrook.app',
-}: DashboardHeaderProps) {
+export function DashboardHeader() {
+  const [userName, setUserName] = useState('')
+  const [userEmail, setUserEmail] = useState('')
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<Array<{ kind: 'campaign' | 'referral' | 'blog'; id: string; label: string }>>([])
@@ -50,6 +44,22 @@ export function DashboardHeader({
       : role === 'user'
         ? USER_MENU_ITEMS
         : BROKER_MENU_ITEMS
+
+  useEffect(() => {
+    void authService
+      .me()
+      .then((res) => {
+        setUserName(res.data.fullName)
+        setUserEmail(res.data.email)
+      })
+      .catch(() => {
+        const payload = getTokenPayload()
+        if (payload?.email) {
+          setUserEmail(payload.email)
+          setUserName(payload.email.split('@')[0] ?? 'User')
+        }
+      })
+  }, [])
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -68,9 +78,21 @@ export function DashboardHeader({
       void searchGlobal(query)
         .then((res) => {
           const next = [
-            ...res.data.campaigns.map((c) => ({ kind: 'campaign' as const, id: c.id, label: c.name })),
-            ...res.data.referrals.map((r) => ({ kind: 'referral' as const, id: r.id, label: `${r.id} - ${r.customerName}` })),
-            ...res.data.blogs.map((b) => ({ kind: 'blog' as const, id: b.id, label: b.title })),
+            ...res.data.campaigns.map((c) => ({
+              kind: 'campaign' as const,
+              id: c.id,
+              label: c.name ?? 'Campaign',
+            })),
+            ...res.data.referrals.map((r) => ({
+              kind: 'referral' as const,
+              id: r.id,
+              label: `${r.id} — ${r.customerName ?? 'Referral'}`,
+            })),
+            ...res.data.blogs.map((b) => ({
+              kind: 'blog' as const,
+              id: b.id,
+              label: b.title ?? 'Blog',
+            })),
           ].slice(0, 8)
           setResults(next)
         })
@@ -88,8 +110,9 @@ export function DashboardHeader({
   }
 
   return (
-    <header className="sticky top-0 z-50 border-b border-line bg-white shadow-sm">
-      <div className="mx-auto flex max-w-[1440px] items-center justify-between gap-4 px-4 py-4 sm:px-8 lg:px-[120px]">
+    <>
+      <header className="fixed inset-x-0 top-0 z-50 border-b border-line/80 bg-white/95 shadow-sm backdrop-blur-md supports-[backdrop-filter]:bg-white/90">
+        <div className="mx-auto flex max-w-[1440px] items-center justify-between gap-4 px-4 py-4 sm:px-8 lg:px-[120px]">
         <MabrookLogo compact />
 
         <div className="relative mr-auto hidden w-full max-w-[420px] md:block">
@@ -131,7 +154,7 @@ export function DashboardHeader({
               height={40}
             />
             <span className="hidden max-w-[160px] truncate text-left text-sm font-semibold text-brand sm:block">
-              {userName}
+              {userName || '…'}
             </span>
             <svg
               className={`hidden size-4 text-brand/60 sm:block ${open ? 'rotate-180' : ''} transition`}
@@ -151,8 +174,8 @@ export function DashboardHeader({
               className="absolute right-0 top-[calc(100%+8px)] w-[min(100vw-2rem,280px)] rounded-2xl border border-line bg-white py-2 shadow-lg"
             >
               <div className="border-b border-line px-4 py-3">
-                <p className="font-semibold text-brand">{userName}</p>
-                <p className="mt-0.5 text-sm text-brand/70">{userEmail}</p>
+                <p className="font-semibold text-brand">{userName || 'Account'}</p>
+                <p className="mt-0.5 text-sm text-brand/70">{userEmail || '—'}</p>
               </div>
               <nav className="flex flex-col py-1" aria-label="Account menu">
                 {menuItems.map((item) => (
@@ -186,7 +209,9 @@ export function DashboardHeader({
             </div>
           ) : null}
         </div>
-      </div>
-    </header>
+        </div>
+      </header>
+      <div className="h-[72px] w-full shrink-0" aria-hidden />
+    </>
   )
 }

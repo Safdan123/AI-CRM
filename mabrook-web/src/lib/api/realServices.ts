@@ -1,36 +1,78 @@
 import type {
   AdminServiceContract,
+  AiInsightsContract,
+  AnalyticsServiceContract,
   AuthServiceContract,
   CampaignServiceContract,
   ReferralServiceContract,
   UserPortalServiceContract,
 } from './contracts'
-import type { ApiResult, Campaign, Referral, UserCampaignAcceptance } from './types'
-import { apiFetch, setAccessToken } from './http'
+import type {
+  ApiResult,
+  BrokerInviteLink,
+  Campaign,
+  ChurnScoresPayload,
+  InviteAcceptResult,
+  InviteResolvePayload,
+  LeadScoresPayload,
+  Referral,
+  ScoreTier,
+  TimeseriesPoint,
+  UserCampaignAcceptance,
+} from './types'
+import { apiFetch, apiFetchPublic, apiUpload, setAccessToken, setRefreshToken } from './http'
+
+type AuthResponse = {
+  user: { id: string; fullName: string; email: string; role: 'admin' | 'broker' | 'user' | 'support' }
+  accessToken: string
+  refreshToken?: string
+}
 
 export const realAuthService: AuthServiceContract = {
+  async forgotPassword(email) {
+    return apiFetchPublic<ApiResult<{ message: string }>>('/api/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    })
+  },
+  async resetPassword(input) {
+    return apiFetchPublic<ApiResult<{ message: string }>>('/api/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    })
+  },
+  async changePassword(input) {
+    return apiFetch<ApiResult<{ message: string }>>('/api/auth/change-password', {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    })
+  },
   async login(input) {
-    const result = await apiFetch<ApiResult<{ user: { id: string; fullName: string; email: string; role: 'admin' | 'broker' | 'user' | 'support' }; accessToken: string }>>('/api/auth/login', {
+    const result = await apiFetchPublic<ApiResult<AuthResponse>>('/api/auth/login', {
       method: 'POST',
       body: JSON.stringify(input),
     })
     setAccessToken(result.data.accessToken)
+    if (result.data.refreshToken) setRefreshToken(result.data.refreshToken)
     return result
   },
   async signup(input) {
-    const result = await apiFetch<ApiResult<{ user: { id: string; fullName: string; email: string; role: 'admin' | 'broker' | 'user' | 'support' }; accessToken: string }>>('/api/auth/signup', {
+    const result = await apiFetchPublic<ApiResult<AuthResponse>>('/api/auth/signup', {
       method: 'POST',
       body: JSON.stringify(input),
     })
     setAccessToken(result.data.accessToken)
+    if (result.data.refreshToken) setRefreshToken(result.data.refreshToken)
     return result
   },
   async me() {
     return apiFetch('/api/auth/me')
   },
   async logout() {
+    const result = await apiFetch<ApiResult<{ ok: true }>>('/api/auth/logout', { method: 'POST' })
     setAccessToken(null)
-    return apiFetch('/api/auth/logout', { method: 'POST' })
+    setRefreshToken(null)
+    return result
   },
 }
 
@@ -40,6 +82,12 @@ export const realCampaignService: CampaignServiceContract = {
   },
   async getById(campaignId) {
     return apiFetch(`/api/campaigns/${campaignId}`)
+  },
+  async create(input) {
+    return apiFetch<ApiResult<Campaign>>('/api/campaigns', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    })
   },
 }
 
@@ -56,6 +104,15 @@ export const realReferralService: ReferralServiceContract = {
   },
   async getById(referralId) {
     return apiFetch(`/api/referrals/${referralId}`)
+  },
+}
+
+export const realAnalyticsService: AnalyticsServiceContract = {
+  async getTimeseries(key, days = 30) {
+    const d = Math.min(180, Math.max(1, days))
+    return apiFetch<ApiResult<TimeseriesPoint[]>>(
+      `/api/analytics/timeseries/${encodeURIComponent(key)}?days=${d}`,
+    )
   },
 }
 
@@ -86,8 +143,29 @@ export const realUserPortalService: UserPortalServiceContract = {
   },
 }
 
+/** Meilisearch hit shapes used by `GET /api/search` (ids always indexed as strings). */
+export type SearchCampaignHit = { id: string; name?: string }
+export type SearchReferralHit = { id: string; customerName?: string }
+export type SearchBlogHit = { id: string; title?: string }
+
+export type SearchResults = {
+  referrals: SearchReferralHit[]
+  campaigns: SearchCampaignHit[]
+  blogs: SearchBlogHit[]
+}
+
 export async function searchGlobal(query: string) {
-  return apiFetch<ApiResult<{ referrals: Referral[]; campaigns: Campaign[]; blogs: Array<{ id: string; title: string }> }>>(`/api/search?q=${encodeURIComponent(query)}`)
+  return apiFetch<ApiResult<SearchResults>>(`/api/search?q=${encodeURIComponent(query)}`)
+}
+
+export async function searchByType(
+  type: 'referrals' | 'campaigns' | 'blogs',
+  query: string,
+  limit = 20,
+) {
+  return apiFetch<ApiResult<{ hits: Array<Record<string, unknown>> }>>(
+    `/api/search/${type}?q=${encodeURIComponent(query)}&limit=${limit}`,
+  )
 }
 
 export type ProfilePayload = {
@@ -98,6 +176,7 @@ export type ProfilePayload = {
   bio: string
   avatarUrl: string
   phone: string
+  preferredCurrency?: string
 }
 
 export async function getMyProfile() {
@@ -107,8 +186,10 @@ export async function getMyProfile() {
 export async function updateMyProfile(input: {
   fullName?: string
   bio?: string
-  avatarUrl?: string
   phone?: string
+  preferredCurrency?: string
+  /** Data URL or server URL; backend caps length. */
+  avatarUrl?: string
 }) {
   return apiFetch<ApiResult<ProfilePayload>>('/api/profile/me', {
     method: 'PATCH',
@@ -116,10 +197,104 @@ export async function updateMyProfile(input: {
   })
 }
 
+export async function uploadAvatar(file: File) {
+  const fd = new FormData()
+  fd.append('avatar', file)
+  return apiUpload<ApiResult<{ avatarUrl: string }>>('/api/profile/me/avatar', fd)
+}
+
+export type LeaderboardPeriod = 'day' | 'week' | 'month' | 'all'
+export type LeaderboardMetric = 'referrals' | 'conversions' | 'rewards'
+
+export async function getLeaderboard(params?: {
+  period?: LeaderboardPeriod
+  metric?: LeaderboardMetric
+  campaignId?: string
+  limit?: number
+}) {
+  const q = new URLSearchParams()
+  if (params?.period) q.set('period', params.period)
+  if (params?.metric) q.set('metric', params.metric)
+  if (params?.campaignId) q.set('campaignId', params.campaignId)
+  if (params?.limit != null) q.set('limit', String(params.limit))
+  const qs = q.toString()
+  return apiFetch<
+    ApiResult<{
+      period: LeaderboardPeriod
+      metric: LeaderboardMetric
+      campaignId: string | null
+      rows: Array<{ rank: number; brokerId: string; name: string; score: number }>
+    }>
+  >(`/api/leaderboard${qs ? `?${qs}` : ''}`)
+}
+
+export async function getOrCreateBrokerInvite(campaignId: string) {
+  return apiFetch<ApiResult<BrokerInviteLink>>('/api/brokers/me/invites', {
+    method: 'POST',
+    body: JSON.stringify({ campaignId }),
+  })
+}
+
+export async function listBrokerInvites(campaignId?: string) {
+  const q = campaignId ? `?campaignId=${encodeURIComponent(campaignId)}` : ''
+  return apiFetch<ApiResult<BrokerInviteLink[]>>(`/api/brokers/me/invites${q}`)
+}
+
+export async function resolveBrokerInvitePublic(inviteCode: string) {
+  return apiFetchPublic<ApiResult<InviteResolvePayload>>(
+    `/api/invites/${encodeURIComponent(inviteCode.trim().toUpperCase())}`,
+  )
+}
+
+export async function acceptBrokerInvite(inviteCode: string) {
+  return apiFetch<ApiResult<InviteAcceptResult>>(
+    `/api/invites/${encodeURIComponent(inviteCode.trim().toUpperCase())}/accept`,
+    { method: 'POST', body: JSON.stringify({}) },
+  )
+}
+
+export async function getMyLeaderboardStats(params?: {
+  period?: LeaderboardPeriod
+  campaignId?: string
+}) {
+  const q = new URLSearchParams()
+  if (params?.period) q.set('period', params.period)
+  if (params?.campaignId) q.set('campaignId', params.campaignId)
+  const qs = q.toString()
+  return apiFetch<
+    ApiResult<{
+      period: LeaderboardPeriod
+      campaignId: string | null
+      totalReferrals: number
+      conversions: number
+      rewardsEarned: number
+      position: number
+      totalBrokers: number
+    }>
+  >(`/api/leaderboard/me${qs ? `?${qs}` : ''}`)
+}
+
+export async function getMyLoginActivity() {
+  return apiFetch<
+    ApiResult<
+      Array<{
+        id: string
+        success: boolean
+        ip: string
+        userAgent: string
+        failureReason?: string
+        createdAt: string
+      }>
+    >
+  >('/api/auth/me/login-activity')
+}
+
 export async function createReferral(input: {
   customerName: string
   phone: string
   campaignId: string
+  relationship?: string
+  notes?: string
 }) {
   return apiFetch<ApiResult<Referral>>('/api/referrals', {
     method: 'POST',
@@ -132,6 +307,8 @@ export type NotificationPayload = {
   userId: string
   title: string
   body: string
+  category?: string
+  link?: string
   isRead: boolean
   createdAt: string
 }
@@ -140,7 +317,13 @@ export async function listMyNotifications() {
   return apiFetch<ApiResult<NotificationPayload[]>>('/api/notifications/me')
 }
 
-export async function createNotification(input: { userId: string; title: string; body: string }) {
+export async function createNotification(input: {
+  userId: string
+  title: string
+  body: string
+  category?: string
+  link?: string
+}) {
   return apiFetch<ApiResult<NotificationPayload>>('/api/notifications', {
     method: 'POST',
     body: JSON.stringify(input),
@@ -160,29 +343,47 @@ export async function markAllNotificationsRead() {
 }
 
 export async function listAdminUsers() {
-  return apiFetch<ApiResult<Array<{ id: string; fullName: string; email: string; role: 'admin' | 'broker' | 'user' | 'support' }>>>('/api/admin/users')
+  return apiFetch<
+    ApiResult<Array<{ id: string; fullName: string; email: string; role: 'admin' | 'broker' | 'user' | 'support' }>>
+  >('/api/admin/users')
 }
 
 export type BlogPayload = {
   _id: string
+  id: string
   title: string
+  slug: string
   body: string
+  bodyHtml?: string
+  excerpt: string
   tags: string[]
+  status?: 'draft' | 'published'
+  publishedAt?: string
   createdAt: string
 }
 
 export async function listBlogs() {
-  return apiFetch<ApiResult<BlogPayload[]>>('/api/blogs')
+  return apiFetchPublic<ApiResult<BlogPayload[]>>('/api/blogs')
 }
 
-export async function createBlog(input: { title: string; body: string; tags?: string[] }) {
-  return apiFetch<ApiResult<BlogPayload>>('/api/blogs', {
-    method: 'POST',
-    body: JSON.stringify(input),
-  })
+export async function getBlog(slugOrId: string) {
+  return apiFetchPublic<ApiResult<BlogPayload>>(`/api/blogs/${slugOrId}`)
 }
 
-export async function updateBlog(blogId: string, input: { title: string; body: string; tags?: string[] }) {
+export async function createBlog(input: {
+  title: string
+  body: string
+  excerpt?: string
+  tags?: string[]
+  status?: 'draft' | 'published'
+}) {
+  return apiFetch<ApiResult<BlogPayload>>('/api/blogs', { method: 'POST', body: JSON.stringify(input) })
+}
+
+export async function updateBlog(
+  blogId: string,
+  input: { title: string; body: string; excerpt?: string; tags?: string[]; status?: 'draft' | 'published' },
+) {
   return apiFetch<ApiResult<BlogPayload>>(`/api/blogs/${blogId}`, {
     method: 'PUT',
     body: JSON.stringify(input),
@@ -190,9 +391,7 @@ export async function updateBlog(blogId: string, input: { title: string; body: s
 }
 
 export async function deleteBlog(blogId: string) {
-  return apiFetch<ApiResult<{ id: string; deleted: true }>>(`/api/blogs/${blogId}`, {
-    method: 'DELETE',
-  })
+  return apiFetch<ApiResult<{ id: string; deleted: true }>>(`/api/blogs/${blogId}`, { method: 'DELETE' })
 }
 
 export type PublicContactPayload = {
@@ -200,13 +399,115 @@ export type PublicContactPayload = {
   phone: string
   address: string
   googleMapUrl: string
-  social: {
-    facebook: string
-    instagram: string
-    linkedin: string
-  }
+  social: { facebook: string; instagram: string; linkedin: string }
 }
 
 export async function getPublicContact() {
-  return apiFetch<ApiResult<PublicContactPayload>>('/api/public/contact')
+  return apiFetchPublic<ApiResult<PublicContactPayload>>('/api/public/contact')
+}
+
+export type RewardLedgerEntry = {
+  _id: string
+  userId: string
+  referralId?: string
+  amount: number
+  currency: string
+  amountInBase: number
+  baseCurrency: string
+  fxRate: number
+  entryType: 'credit' | 'debit'
+  description: string
+  createdAt: string
+}
+
+export async function getMyRewards() {
+  return apiFetch<
+    ApiResult<{
+      balanceInBase: number
+      baseCurrency: string
+      creditTotal: number
+      debitTotal: number
+      entries: RewardLedgerEntry[]
+    }>
+  >('/api/rewards/me')
+}
+
+export async function getRewardsCashflow() {
+  return apiFetch<
+    ApiResult<{
+      credit: number
+      debit: number
+      baseCurrency: string
+      creditCount: number
+      debitCount: number
+    }>
+  >('/api/rewards/cashflow')
+}
+
+export async function getFxRates(base = 'USD') {
+  return apiFetchPublic<ApiResult<{ base: string; rates: Record<string, number> }>>(
+    `/api/rewards/fx?base=${base}`,
+  )
+}
+
+export type AiRecommendation = {
+  id: string
+  name: string
+  description?: string
+  totalRewardAmount: number
+  rewardCurrency: string
+  score?: number
+}
+
+export async function getRecommendations(userId: string) {
+  return apiFetch<ApiResult<AiRecommendation[]>>(`/api/recommendations/${userId}`)
+}
+
+export async function aiChat(prompt: string, system?: string) {
+  return apiFetch<ApiResult<{ provider: string; text: string }>>('/api/ai/chat', {
+    method: 'POST',
+    body: JSON.stringify({ prompt, system }),
+  })
+}
+
+export async function aiStatus() {
+  return apiFetchPublic<ApiResult<{ provider: string }>>('/api/ai/status')
+}
+
+export async function requestRewardReport(format: 'pdf' | 'xlsx' = 'pdf') {
+  return apiFetch<ApiResult<{ jobId: string }>>('/api/reports/rewards', {
+    method: 'POST',
+    body: JSON.stringify({ format }),
+  })
+}
+
+export async function getReportJob(jobId: string) {
+  return apiFetch<ApiResult<{ id: string; state: string; progress: unknown }>>(
+    `/api/reports/jobs/${jobId}`,
+  )
+}
+
+export function downloadReportUrl(jobId: string) {
+  return `/api/reports/jobs/${jobId}/download`
+}
+
+export const realAiInsightsService: AiInsightsContract = {
+  async getLeadScores(params?: { tier?: ScoreTier; limit?: number }) {
+    const q = new URLSearchParams()
+    if (params?.tier) q.set('tier', params.tier)
+    if (params?.limit != null) q.set('limit', String(params.limit))
+    const qs = q.toString()
+    return apiFetch<ApiResult<LeadScoresPayload>>(
+      `/api/ai/admin/lead-scores${qs ? `?${qs}` : ''}`,
+    )
+  },
+  async getChurnScores(params?: { tier?: ScoreTier; limit?: number }) {
+    const q = new URLSearchParams()
+    if (params?.tier) q.set('tier', params.tier)
+    if (params?.limit != null) q.set('limit', String(params.limit))
+    const qs = q.toString()
+    return apiFetch<ApiResult<ChurnScoresPayload>>(
+      `/api/ai/admin/churn-scores${qs ? `?${qs}` : ''}`,
+    )
+  },
 }

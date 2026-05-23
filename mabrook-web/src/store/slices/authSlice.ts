@@ -1,5 +1,5 @@
 import { createSlice } from '@reduxjs/toolkit'
-import { getTokenPayload, setAccessToken } from '../../lib/api/http'
+import { getTokenPayload, setAccessToken, setRefreshToken } from '../../lib/api/http'
 import type { UserRole } from '../../lib/api/types'
 
 type AuthState = {
@@ -29,6 +29,7 @@ const authSlice = createSlice({
     },
     logout(state) {
       setAccessToken(null)
+      setRefreshToken(null)
       state.isAuthenticated = false
       state.user = null
     },

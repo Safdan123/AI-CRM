@@ -6,7 +6,8 @@ import { SocialAuthButtons } from '../components/auth/SocialAuthButtons'
 import { paths } from '../config/paths'
 import { authService } from '../lib/api'
 import type { UserRole } from '../lib/api/types'
-import { getDashboardRouteByRole } from '../lib/auth/roleRoute'
+import { navigateAfterAuth } from '../lib/referral/afterAuthRedirect'
+import { getPendingInviteCode } from '../lib/referral/inviteStorage'
 
 export function SignupPage() {
   const navigate = useNavigate()
@@ -19,6 +20,7 @@ export function SignupPage() {
   const [error, setError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const canPickRole = import.meta.env.VITE_ALLOW_SIGNUP_ROLE_PICKER === 'true'
+  const fromInvite = Boolean(getPendingInviteCode())
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -39,9 +41,9 @@ export function SignupPage() {
         fullName,
         email,
         password,
-        role: canPickRole ? role : 'user',
+        role: fromInvite ? 'user' : canPickRole ? role : 'user',
       })
-      navigate(getDashboardRouteByRole(response.data.user.role))
+      await navigateAfterAuth(response.data.user.role, navigate)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to create account. Please try again.')
     } finally {

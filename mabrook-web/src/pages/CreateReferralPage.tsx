@@ -83,9 +83,11 @@ export function CreateReferralPage() {
 
     setSaving(true)
     void createReferral({
-      customerName: form.customerName,
-      phone: form.phone,
+      customerName: form.customerName.trim(),
+      phone: form.phone.trim(),
       campaignId: form.campaign,
+      relationship: form.relationship,
+      notes: form.notes.trim(),
     })
       .then(() => {
         navigate(paths.brokerReferrals)
@@ -100,7 +102,7 @@ export function CreateReferralPage() {
 
   return (
     <div className={PAGE_WRAP}>
-      <DashboardHeader userName="Jack Morris" userEmail="jack.morris@mabrook.app" />
+      <DashboardHeader />
       <main className="flex-1 bg-white">
         <section className="mx-auto w-full max-w-[1440px] px-4 py-5 sm:px-8 lg:px-[120px]">
           <p className="text-xs text-brand/55">Home / Referrals / Create Referral</p>
